@@ -5,10 +5,12 @@ Commands describe the input the account can do to the game.
 
 """
 
+import time
+from datetime import datetime
+
 from evennia.commands.command import Command as BaseCommand
-
-# from evennia import default_cmds
-
+from evennia import default_cmds
+from evennia.utils.gametime import gametime
 
 class Command(BaseCommand):
     """
@@ -33,6 +35,36 @@ class Command(BaseCommand):
 
     pass
 
+class CmdChecktime(default_cmds.MuxCommand):
+    """
+    Check the game time
+
+    Usage:
+        time
+
+    Shows the current in-game time and season
+    """
+
+    key = "time"
+    locks = "cmd:all()"
+    help_category = "General"
+
+    def func(self):
+        """Reads time info from current room"""
+        # get absolute time
+        gtime = datetime.fromtimestamp(gametime(absolute=True))
+
+        location = self.caller.location
+        if not location or not hasattr(location, "get_time_and_season"):
+            self.caller.msg("No location available - you are outside time.")
+        else:
+            season, timeslot = location.get_time_and_season()
+            prep = "a"
+            if season == "autumn":
+                prep = "an"
+            new_line = "\n"
+            msg = f"|wIt's {prep} {season} {timeslot}.|n{new_line}|wThe time is:|n |g{gtime.strftime('%I:%M %p')}|n{new_line}|wThe date is:|n|g {gtime.strftime('%x')}|n{new_line}"
+            self.caller.msg(msg)
 
 # -------------------------------------------------------------
 #
