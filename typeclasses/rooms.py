@@ -139,6 +139,10 @@ class Room(DefaultRoom):
         self.db.raw_desc = ""
         # this will be set dynamically at first look. Parsed for timeslot codes
         self.db.desc = ""
+        # coordinates
+        self.db.x = 0
+        self.db.y = 0
+        self.db.z = 0
         # these will be filled later
         self.ndb.last_season = None
         self.ndb.last_timeslot = None
