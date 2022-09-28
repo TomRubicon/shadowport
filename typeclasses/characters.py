@@ -30,5 +30,60 @@ class Character(DefaultCharacter):
     at_post_puppet - Echoes "AccountName has entered the game" to the room.
 
     """
+    def announce_move_from(self, destination, msg=None, mapping=None):
+        """
+        Called if the move is to be announced. This is
+        called while we are still standing in the old
+        location.
 
-    pass
+        Args:
+            destination (Object): The place we are going to.
+            msg (str, optional): a replacement message.
+            mapping (dict, optional): additional mapping objects.
+
+        You can override this method and call its parent with a
+        message to simply change the default message.  In the string,
+        you can use the following as mappings (between braces):
+            object: the object which is moving.
+            exit: the exit from which the object is moving (if found).
+            origin: the location of the object before the move.
+            destination: the location of the object after moving.
+
+        """
+        super().announce_move_from(destination, msg="{object} leaves {exit}.")
+
+    def announce_move_to(self, source_location, msg=None, mapping=None):
+        """
+        Called after the move if the move was not quiet. At this point
+        we are standing in the new location.
+
+        Args:
+            source_location (Object): The place we came from
+            msg (str, optional): the replacement message if location.
+            mapping (dict, optional): additional mapping objects.
+
+        You can override this method and call its parent with a
+        message to simply change the default message.  In the string,
+        you can use the following as mappings (between braces):
+            object: the object which is moving.
+            exit: the exit from which the object is moving (if found).
+            origin: the location of the object before the move.
+            destination: the location of the object after moving.
+
+        """
+        origin = source_location
+        destination = self.location
+        exits = []
+        if origin:
+            exits = [
+                o
+                for o in destination.contents
+                if o.location is destination and o.destination is origin
+            ]
+        the_exit = exits[0]
+        self.msg(the_exit)
+        exit_msg = "{object} arrives from the {exit}."
+        exit_dict = {"up":"above", "down":"below", "in":"inside", "out":"outside"}
+        if str(the_exit) in exit_dict:
+            exit_msg = "{object} arrives from %s." % (exit_dict[str(the_exit)])
+        super().announce_move_to(source_location, msg=exit_msg)
