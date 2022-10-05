@@ -56,7 +56,7 @@ class Exit(DefaultExit):
                     # No shorthand error message. Call hook.
                     self.at_failed_traverse(traversing_object)
 
-        traversing_object.msg("You start moving %s at a %s." % (self.key, move_speed))
+        traversing_object.msg("You start moving %s. It will take %s seconds." % (self.key, move_speed))
         traversing_object.location.msg_contents(f"{traversing_object.name} starts moving {self.key} at a {move_speed}", exclude=traversing_object)
         # create a delayed movement
         t = utils.delay(move_speed, move_callback)
