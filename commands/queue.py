@@ -20,6 +20,7 @@ class CmdStop(BaseCommand):
     """
 
     key = "stop"
+    help_category = "movement"
 
     def func(self):
         """

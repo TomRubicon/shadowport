@@ -81,7 +81,6 @@ class Character(DefaultCharacter):
                 if o.location is destination and o.destination is origin
             ]
         the_exit = exits[0]
-        self.msg(the_exit)
         exit_msg = "{object} arrives from the {exit}."
         exit_dict = {"up":"above", "down":"below", "in":"inside", "out":"outside"}
         if str(the_exit) in exit_dict:

@@ -13,7 +13,7 @@ to add/remove commands from the default lineup. You can create your
 own cmdsets by inheriting from them or directly from `evennia.CmdSet`.
 
 """
-from commands import command, social, builder, queue
+from commands import command, social, builder, queue, movement
 from typeclasses import rooms
 from evennia import default_cmds
 
@@ -38,6 +38,7 @@ class CharacterCmdSet(default_cmds.CharacterCmdSet):
         self.add(social.SocialCmdSet)
         self.add(builder.CustomBuilderCmdSet)
         self.add(queue.QueueCmdSet)
+        self.add(movement.MovementCmdSet)
 
 class AccountCmdSet(default_cmds.AccountCmdSet):
     """
