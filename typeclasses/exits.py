@@ -55,6 +55,9 @@ class Exit(DefaultExit):
                 else:
                     # No shorthand error message. Call hook.
                     self.at_failed_traverse(traversing_object)
+        if traversing_object.ndb.currently_moving and not traversing_object.ndb.currently_moving.called:
+            traversing_object.msg("You are already moving somewhere. Type |wstop|n to stop moving.")
+            return
 
         traversing_object.msg("You start moving %s. It will take %s seconds." % (self.key, move_speed))
         traversing_object.location.msg_contents(f"{traversing_object.name} starts moving {self.key} at a {move_speed}", exclude=traversing_object)
