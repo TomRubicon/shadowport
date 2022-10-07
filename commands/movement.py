@@ -14,12 +14,12 @@ from commands.queue import CommandQueue
 def handle_movement_queue(caller, key):
     currently_moving = caller.ndb.currently_moving
     if currently_moving and not currently_moving.called:
-        caller.msg(f"Queueing {key}.")
+        #caller.msg(f"Queueing {key}.")
         if not caller.ndb.command_queue:
             caller.ndb.command_queue = CommandQueue()
-            caller.msg("Creating command queue...")
+            #caller.msg("Creating command queue...")
         caller.ndb.command_queue.append(str(key))
-        caller.msg(caller.ndb.command_queue.queue[0])
+        #caller.msg(caller.ndb.command_queue.queue[0])
     else:
         caller.msg("You can't go that way.")
         if caller.ndb.command_queue:

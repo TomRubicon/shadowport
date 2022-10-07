@@ -48,6 +48,8 @@ class CmdStop(BaseCommand):
             self.caller.msg("You stop moving.")
             for observer in self.caller.location.contents_get(self.caller):
                 observer.msg("%s stops." % self.caller.get_display_name(observer))
+            if self.caller.ndb.command_queue:
+                self.caller.ndb.command_queue.queue.clear()
         else:
             self.caller.msg("You are not moving!")
 
