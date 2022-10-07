@@ -8,6 +8,8 @@ for allowing Characters to traverse the exit to its destination.
 """
 from evennia import DefaultExit, utils, Command
 from evennia.contrib.slow_exit import SlowExit
+from commands.queue import CommandQueue
+from commands.movement import handle_movement_queue
 
 class Exit(DefaultExit):
     """
@@ -46,8 +48,12 @@ class Exit(DefaultExit):
         def move_callback():
             "This callback will be called by utils.delay after move_delay seconds."
             source_location = traversing_object.location
+            command_queue = traversing_object.ndb.command_queue
+
             if traversing_object.move_to(target_location):
                 self.at_after_traverse(traversing_object, source_location)
+                if command_queue:
+                    traversing_object.execute_cmd(command_queue.call_next())
             else:
                 if self.db.err_traverse:
                     # if exit has a better error message, let's use it.
@@ -55,8 +61,10 @@ class Exit(DefaultExit):
                 else:
                     # No shorthand error message. Call hook.
                     self.at_failed_traverse(traversing_object)
+
+        # check if traversing object is already moving. If it is, call the queue version of the exit command
         if traversing_object.ndb.currently_moving and not traversing_object.ndb.currently_moving.called:
-            traversing_object.msg("You are already moving somewhere. Type |wstop|n to stop moving.")
+            handle_movement_queue(traversing_object, self.key)
             return
 
         traversing_object.msg("You start moving %s. It will take %s seconds." % (self.key, move_speed))

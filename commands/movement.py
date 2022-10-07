@@ -9,10 +9,25 @@ import evennia
 from evennia.commands.command import Command as BaseCommand
 from evennia import CmdSet
 from evennia.utils import search
+from commands.queue import CommandQueue
+
+def handle_movement_queue(caller, key):
+    currently_moving = caller.ndb.currently_moving
+    if currently_moving and not currently_moving.called:
+        caller.msg(f"Queueing {key}.")
+        if not caller.ndb.command_queue:
+            caller.ndb.command_queue = CommandQueue()
+            caller.msg("Creating command queue...")
+        caller.ndb.command_queue.append(str(key))
+        caller.msg(caller.ndb.command_queue.queue[0])
+    else:
+        caller.msg("You can't go that way.")
+        if caller.ndb.command_queue:
+            caller.ndb.command_queue.queue.clear()
 
 class BaseMovementCmd(BaseCommand):
     def func(self):
-        self.caller.msg("You can't go that way.")
+        handle_movement_queue(self.caller, self.key)
 
 class CmdNorth(BaseMovementCmd):
     """
@@ -23,7 +38,7 @@ class CmdNorth(BaseMovementCmd):
     """
 
     key = "north"
-    aliases = "n"
+    aliases = ["n", "northq", "fart"]
     help_category = "movement"
 
 class CmdNorthEast(BaseMovementCmd):

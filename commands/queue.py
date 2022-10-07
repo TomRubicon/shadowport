@@ -9,6 +9,20 @@ import evennia
 from evennia.commands.command import Command as BaseCommand
 from evennia import CmdSet
 
+class CommandQueue:
+    def __init__(self):
+        self.queue = []
+
+    def append(self, command):
+        self.queue.append(command) 
+
+    def call_next(self):
+        if self.queue:
+            command = self.queue[0]
+            self.queue.pop(0)
+            return command
+        return ""
+
 class CmdStop(BaseCommand):
     """
     stop action
