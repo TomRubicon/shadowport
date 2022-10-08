@@ -57,7 +57,7 @@ class CmdInventory(Command):
                 name = f"{count} {name}"
                 table.add_row("|W*|n",name, mass)
 
-            string = f"|wYou are carring: |n\n\n{table}\n\n|YTotal Weight:|n |M{total_weight}|n\n"
+            string = f"|wYou are carrying: |n\n\n{table}\n\n|YTotal Weight:|n |M{total_weight}|n\n"
         self.caller.msg(string)
 
 class InventoryCmdSet(CmdSet):
