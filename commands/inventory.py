@@ -46,6 +46,7 @@ class CmdInventory(Command):
             for item in items:
                 item_list.append({"name" : item.name, "mass" : item.get_mass()}) 
 
+            item_list = sorted(item_list, key=lambda itm: itm["name"])
             for name, item in itertools.groupby(item_list, key=lambda itm: itm["name"]):
                 items = list(item)
                 count = len(items)
