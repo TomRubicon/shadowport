@@ -82,21 +82,25 @@ class CmdPut(MuxCommand):
         caller = self.caller
         location = caller.location
 
-        if not self.lhs:
+        if not self.lhs and not self.rhs:
             caller.msg("Put what?")
             return
         if not self.rhs:
             caller.msg(f"Put {self.lhs} in what?")
+            return
 
-        obj_list = caller.search(
-            self.lhs,
-            location=caller,
-            use_nicks=True,
-            quiet=True
-        )
+        if not self.lhs and "all" in self.switches and self.rhs:
+            obj_list = [obj for obj in caller.contents if obj !=caller and obj.access(caller, "get")] 
+        else:
+            obj_list = caller.search(
+                self.lhs,
+                location=caller,
+                use_nicks=True,
+                quiet=True
+            )
 
         if not obj_list:
-            caller.msg(f"You aren't carring {self.lhs}")
+            caller.msg(f"You aren't carring |w{self.lhs}|n.")
             return
 
         container = caller.search(self.rhs)
@@ -114,6 +118,9 @@ class CmdPut(MuxCommand):
             if caller == obj:
                 caller.msg("You can't put yourself in a container!")
                 return
+            if container and obj == container:
+                caller.msg(f"You can't put {container.name} in itself.")
+                return
             if not obj.at_before_get(caller):
                 return
 
@@ -122,8 +129,8 @@ class CmdPut(MuxCommand):
             if not success:
                 caller.msg("This can't be put in a container.")
             else:
-                caller.msg(f"You put {obj.get_numbered_name(1, caller)[0]} into {container.name}.")
-                location.msg_contents(f"{caller.name} puts {obj.get_numbered_name(1,caller)[0]} into {container}.", exclude=caller)
+                caller.msg(f"You put |w{obj.get_numbered_name(1, caller)[0]}|n into |w{container.name}|n.")
+                location.msg_contents(f"|w{caller.name}|n puts |w{obj.get_numbered_name(1,caller)[0]}|n into |w{container}|n.", exclude=caller)
 
             if "all" not in self.switches:
                 return
@@ -152,26 +159,45 @@ class CmdGet(MuxCommand):
 
         caller = self.caller
         location = caller.location
-        
+        container_msg = ""
+
         if not self.lhs and not self.switches:
             caller.msg("Get what?")
             return
         # get/all
         elif not self.lhs and "all" in self.switches:
-            obj_list = [obj for obj in location.contents if obj != caller and obj.access(caller, "get")]
+            if self.rhs:
+                container = caller.search(self.rhs)
+                if not container:
+                    return
+                container_msg = f" from |w{container.name}|n"
+                obj_list = [obj for obj in container.contents if obj !=caller and obj.access(caller, "get")]
+            else:
+                obj_list = [obj for obj in location.contents if obj != caller and obj.access(caller, "get")]
         # get/all <obj>
         elif self.lhs:
-            obj_list = caller.search(
-                self.lhs,
-                location=location,
-                use_nicks=True,
-                quiet=True
-            )
+            if self.rhs:
+                container = caller.search(self.rhs)
+                if not container:
+                    return
+                container_msg = f" from |w{container.name}|n"
+                obj_list = caller.search(
+                    self.lhs,
+                    location=container,
+                    use_nicks=True,
+                    quiet=True
+                )
+            else:
+                obj_list = caller.search(
+                    self.lhs,
+                    location=location,
+                    use_nicks=True,
+                    quiet=True
+                )
 
-        caller.msg(obj_list)
         if not obj_list:
             if self.lhs:
-                caller.msg(f"There is no {self.lhs} to get here.")
+                caller.msg(f"There is no |w{self.lhs}|n to get here.")
             else:
                 caller.msg("There is nothing to get here.")
             return
@@ -198,8 +224,8 @@ class CmdGet(MuxCommand):
             if not success:
                 caller.msg("This can't be picked up.")
             else:
-                caller.msg(f"You pick up {obj.name}.")
-                location.msg_contents(f"{caller.name} picks up {obj.name}.", exclude=caller)
+                caller.msg(f"You get |w{obj.get_numbered_name(1, caller)[0]}|n{container_msg}.")
+                location.msg_contents(f"|w{caller.name}|n gets |w{obj.get_numbered_name(1,caller)[0]}|n{container_msg}.", exclude=caller)
                 obj.at_get(caller)
             
             if "all" not in self.switches:
