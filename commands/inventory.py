@@ -80,6 +80,53 @@ class CmdPut(MuxCommand):
     
     def func(self):
         caller = self.caller
+        location = caller.location
+
+        if not self.lhs:
+            caller.msg("Put what?")
+            return
+        if not self.rhs:
+            caller.msg(f"Put {self.lhs} in what?")
+
+        obj_list = caller.search(
+            self.lhs,
+            location=caller,
+            use_nicks=True,
+            quiet=True
+        )
+
+        if not obj_list:
+            caller.msg(f"You aren't carring {self.lhs}")
+            return
+
+        container = caller.search(self.rhs)
+
+        if not container:
+            return
+
+        if not container.db.container:
+            caller.msg("You can't put anything in this.")
+            return
+
+        for obj in obj_list:
+            if not obj:
+                return
+            if caller == obj:
+                caller.msg("You can't put yourself in a container!")
+                return
+            if not obj.at_before_get(caller):
+                return
+
+            success = obj.move_to(container, quiet=True)
+
+            if not success:
+                caller.msg("This can't be put in a container.")
+            else:
+                caller.msg(f"You put {obj.get_numbered_name(1, caller)[0]} into {container.name}.")
+                location.msg_contents(f"{caller.name} puts {obj.get_numbered_name(1,caller)[0]} into {container}.", exclude=caller)
+
+            if "all" not in self.switches:
+                return
 
 class CmdGet(MuxCommand):
     """
