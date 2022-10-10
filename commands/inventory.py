@@ -69,6 +69,7 @@ class CmdPut(MuxCommand):
     Usage:
       put <item> = <container>
       put/all <item> = <container>
+      put/all = <container>
 
     Put an item inside a container.
     """
@@ -82,15 +83,19 @@ class CmdPut(MuxCommand):
         caller = self.caller
         location = caller.location
 
+        # put 
         if not self.lhs and not self.rhs:
             caller.msg("Put what?")
             return
+        # put <obj>
         if not self.rhs:
             caller.msg(f"Put {self.lhs} in what?")
             return
 
+        # put/all = <container>
         if not self.lhs and "all" in self.switches and self.rhs:
             obj_list = [obj for obj in caller.contents if obj !=caller and obj.access(caller, "get")] 
+        # put <obj> = <container>
         else:
             obj_list = caller.search(
                 self.lhs,
@@ -108,6 +113,7 @@ class CmdPut(MuxCommand):
         if not container:
             return
 
+        # is it a container?
         if not container.db.container:
             caller.msg("You can't put anything in this.")
             return
@@ -143,6 +149,7 @@ class CmdGet(MuxCommand):
       get <item>
       get/all <item>
       get <item> = <container>
+      get/all <item> = <container>
 
     Picks up an object from your location or from a
     container and puts it in your inventory.
@@ -161,6 +168,7 @@ class CmdGet(MuxCommand):
         location = caller.location
         container_msg = ""
 
+        # get
         if not self.lhs and not self.switches:
             caller.msg("Get what?")
             return
@@ -174,8 +182,8 @@ class CmdGet(MuxCommand):
                 obj_list = [obj for obj in container.contents if obj !=caller and obj.access(caller, "get")]
             else:
                 obj_list = [obj for obj in location.contents if obj != caller and obj.access(caller, "get")]
-        # get/all <obj>
         elif self.lhs:
+            # get <obj> = <container>
             if self.rhs:
                 container = caller.search(self.rhs)
                 if not container:
@@ -187,6 +195,7 @@ class CmdGet(MuxCommand):
                     use_nicks=True,
                     quiet=True
                 )
+            # get <obj>
             else:
                 obj_list = caller.search(
                     self.lhs,
