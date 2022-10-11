@@ -12,7 +12,7 @@ from evennia.commands.command import Command
 from evennia.commands.default.muxcommand import MuxCommand
 from evennia import CmdSet, utils
 
-def display_contents(caller, empty_msg, carrying_msg):
+def display_contents(caller, empty_msg, carrying_msg, for_container=False):
     items = caller.contents
 
     if not items:
@@ -27,7 +27,10 @@ def display_contents(caller, empty_msg, carrying_msg):
         total_weight = 0
 
         for item in items:
-            item_list.append({"name" : item.name, "mass" : item.get_mass()}) 
+            if for_container:
+                item_list.append({"name" : item.name, "mass" : item.get_mass_modified(caller.db.mass_reduction)}) 
+            else:
+                item_list.append({"name" : item.name, "mass" : item.get_mass()}) 
 
         item_list = sorted(item_list, key=lambda itm: itm["name"])
 
@@ -43,7 +46,15 @@ def display_contents(caller, empty_msg, carrying_msg):
             name = f"{count} {name}"
             table.add_row("|W*|n",name, mass)
 
-        string = f"|w{carrying_msg}: |n\n\n{table}\n\n|YTotal Weight:|n |M{total_weight}|n\n"
+        string = f"|w{carrying_msg}: |n"
+        string += f"\n\n{table}\n\n" 
+        if for_container:
+            capacity = caller.db.capacity
+            remaining_space = capacity - total_weight
+            string += f"|YTotal Weight Of Contents:|n |M{total_weight}|n/|M{capacity}|n"
+
+        else:
+            string += f"|YTotal Weight:|n |M{total_weight}|n\n"
     
     return string
 
@@ -132,6 +143,14 @@ class CmdPut(MuxCommand):
             if container and obj == container:
                 caller.msg(f"You can't put {container.name} in itself.")
                 return
+            obj_mass = obj.get_mass_modified(container.db.mass_reduction)
+            container_free_space = container.db.capacity - container.get_contents_mass()
+            caller.msg(f"Container mass reduction: {container.db.mass_reduction}\nObj mass after reduction: {obj_mass}\nContainer free space: {container_free_space}")
+
+            if obj_mass > container_free_space:
+                caller.msg(f"There is not enough room in {container.name} to fit {obj.name}")
+                return
+
             if not obj.at_before_get(caller):
                 return
 

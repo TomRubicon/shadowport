@@ -20,18 +20,27 @@ class Object(DefaultObject):
         mass = self.attributes.get("mass", 1)
         return mass + (sum(obj.get_mass() for obj in self.contents) * modifier)
 
+    def get_mass_modified(self, modifier=1.0):
+        mass = self.attributes.get("mass", 1)
+        return mass * modifier
+
 class Container(Object):
     def at_object_creation(self):
         self.db.container = True
         self.db.capacity = 100
         self.db.mass_reduction = 0.90
-    
+
     def return_appearance(self, looker, **kwargs):
         description = f"|y{self.get_display_name(looker).capitalize()}|n\n"
         description += self.db.desc
-        items = display_contents(self, "It is empty.", "Contents")
+        description += f"\n|YItem Weight:|n {self.db.mass}"
+        items = display_contents(self, "It is empty.", "Contents", for_container=True)
         description += f"\n\n{items}"
         return description
 
     def get_mass(self, modifier=1.0):
         return super().get_mass(self.db.mass_reduction)
+    
+    def get_contents_mass(self):
+        return sum(obj.get_mass_modified(self.db.mass_reduction) for obj in self.contents)
+
