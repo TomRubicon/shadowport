@@ -94,6 +94,7 @@ class CmdPut(MuxCommand):
     aliases = ["p", "place"]
     help_category = "Inventory and Equipment"
     locks = "cmd:all()"
+    rhs_split = ("=", " in ")
     
     def func(self):
         caller = self.caller
@@ -145,7 +146,6 @@ class CmdPut(MuxCommand):
                 return
             obj_mass = obj.get_mass_modified(container.db.mass_reduction)
             container_free_space = container.db.capacity - container.get_contents_mass()
-            caller.msg(f"Container mass reduction: {container.db.mass_reduction}\nObj mass after reduction: {obj_mass}\nContainer free space: {container_free_space}")
 
             if obj_mass > container_free_space:
                 caller.msg(f"There is not enough room in {container.name} to fit {obj.name}")
@@ -183,6 +183,7 @@ class CmdGet(MuxCommand):
     aliases = ["grab","pickup"]
     help_category = "Inventory and Equipment"
     locks = "cmd:all()"
+    rhs_split = ("=", " from ")
     # switch_options = ("all")
 
     def func(self):
