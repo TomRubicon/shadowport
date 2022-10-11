@@ -41,7 +41,7 @@ def display_contents(caller, empty_msg, carrying_msg, for_container=False):
             for i in items:
                 mass += i["mass"]
             total_weight += mass
-            mass = f"|M{mass}|n"
+            mass = f"|M{mass:.2f}|n"
             count = f"|mx{count}|n"
             name = f"{count} {name}"
             table.add_row("|W*|n",name, mass)
@@ -51,10 +51,10 @@ def display_contents(caller, empty_msg, carrying_msg, for_container=False):
         if for_container:
             capacity = caller.db.capacity
             remaining_space = capacity - total_weight
-            string += f"|YTotal Weight Of Contents:|n |M{total_weight}|n/|M{capacity}|n"
+            string += f"|YTotal Weight Of Contents:|n |M{total_weight:.2f}|n/|M{capacity:.2f}|n"
 
         else:
-            string += f"|YTotal Weight:|n |M{total_weight}|n\n"
+            string += f"|YTotal Weight:|n |M{total_weight:.2f}|n\n"
     
     return string
 
