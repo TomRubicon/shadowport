@@ -13,7 +13,8 @@ inheritance.
 
 import itertools
 from evennia import DefaultObject, utils
-from commands.inventory import display_contents
+# from commands.inventory import display_contents
+import commands.inventory as inv_utils
 
 class Object(DefaultObject):
     def get_mass(self, modifier=1.0):
@@ -33,8 +34,8 @@ class Container(Object):
     def return_appearance(self, looker, **kwargs):
         description = f"|y{self.get_display_name(looker).capitalize()}|n\n"
         description += self.db.desc
-        description += f"\n|YItem Weight:|n {self.db.mass}"
-        items = display_contents(self, "It is empty.", "Contents", for_container=True)
+        description += f"\n|YEmpty Weight:|n {self.db.mass}"
+        items = inv_utils.display_contents(self, "It is empty.", "Contents", for_container=True)
         description += f"\n\n{items}"
         return description
 

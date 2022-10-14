@@ -7,10 +7,14 @@ Commands for manipulating the players inventory.
 
 import re
 import itertools
-import evennia
 from evennia.commands.command import Command
 from evennia.commands.default.muxcommand import MuxCommand
 from evennia import CmdSet, utils
+from typeclasses.clothing import single_type_count, clothing_type_count, get_worn_clothes
+from typeclasses.clothing import CLOTHING_OVERALL_LIMIT, CLOTHING_TYPE_LIMIT, WEARSTYLE_MAXLENGTH
+
+
+# Helpers
 
 def display_contents(caller, empty_msg, carrying_msg, for_container=False):
     items = caller.contents
@@ -27,10 +31,16 @@ def display_contents(caller, empty_msg, carrying_msg, for_container=False):
         total_weight = 0
 
         for item in items:
-            if for_container:
-                item_list.append({"name" : item.name, "mass" : item.get_mass_modified(caller.db.mass_reduction)}) 
+            if item.db.worn:
+                name = f"{item.name} |w(worn)|n"
             else:
-                item_list.append({"name" : item.name, "mass" : item.get_mass()}) 
+                name = item.name
+            if for_container:
+                if item.db.worn:
+                    name = f"{item.name} |w(worn)|n"
+                item_list.append({"name" : name, "mass" : item.get_mass_modified(caller.db.mass_reduction)}) 
+            else:
+                item_list.append({"name" : name, "mass" : item.get_mass()}) 
 
         item_list = sorted(item_list, key=lambda itm: itm["name"])
 
@@ -57,6 +67,8 @@ def display_contents(caller, empty_msg, carrying_msg, for_container=False):
             string += f"|YTotal Weight:|n |M{total_weight:.2f}|n\n"
     
     return string
+
+# Commands
 
 class CmdInventory(Command):
     """
@@ -326,9 +338,112 @@ class CmdDrop(MuxCommand):
             if "all" not in self.switches:
                 return
 
+class CmdWear(MuxCommand):
+    """
+    Puts on an item of clothing/armor you are holding.
+
+    Usage:
+      wear <obj> [wear style]
+
+    Examples:
+      wear shirt
+      wear scarf wrapped loosely about the shoulders
+
+    All the clothes you are wearing are appended to your description.
+    If you provide a 'wear style' after the command, the message you
+    provide will be displayed after the clothing's name.
+    """
+
+    key = "wear"
+    help_category = "Inventory and Equipment"
+
+    def func(self):
+        """
+        This performs the actual command.
+        """
+        caller = self.caller
+        if not self.args:
+            caller.msg("Usage: wear <obj> [wear style]")
+            return
+        clothing = caller.search(self.arglist[0], candidates=caller.contents)
+        wearstyle = True
+        if not clothing:
+            caller.msg("Thing to wear must be in your inventory.")
+            return
+        if not clothing.is_typeclass("typeclasses.clothing.Clothing", exact=False):
+            caller.msg("That's not clothes!")
+            return
+
+        # Enforce overall clothing limit.
+        if CLOTHING_OVERALL_LIMIT and len(get_worn_clothes(self.caller)) >= CLOTHING_OVERALL_LIMIT:
+            caller.msg("You can't wear any more clothes.")
+            return
+
+        # Apply individual clothing type limits.
+        if clothing.db.clothing_type and not clothing.db.worn:
+            type_count = single_type_count(get_worn_clothes(caller), clothing.db.clothing_type)
+            if clothing.db.clothing_type in list(CLOTHING_TYPE_LIMIT.keys()):
+                if type_count >= CLOTHING_TYPE_LIMIT[clothing.db.clothing_type]:
+                    caller.msg(
+                        "You can't wear any more clothes of the type '%s'."
+                        % clothing.db.clothing_type
+                    )
+                    return
+
+        if clothing.db.worn and len(self.arglist) == 1:
+            caller.msg("You're already wearing %s!" % clothing.name)
+            return
+        if len(self.arglist) > 1: # If wearstyle arguments given
+            wearstyle_list = self.arglist
+            del wearstyle_list[0] # Leave first argument (the clothing item) out of the wearstyle
+            wearstring = " ".join(
+                str(e) for e in wearstyle_list
+            ) # Join list of args back into one string
+            if (WEARSTYLE_MAXLENGTH and len(wearstring) > WEARSTYLE_MAXLENGTH):
+                caller.msg("Please keep your wear style message to less than %i characters."
+                           % WEARSTYLE_MAXLENGTH)
+            else:
+                wearstyle = wearstring
+        clothing.wear(self.caller, wearstyle)
+
+class CmdRemove(MuxCommand):
+    """
+    Takes off an item of clothing.
+
+    Usage:
+      remove <obj>
+
+    Removes an item of clothing you are wearing. You can't remove
+    clothes that are covered up by something else - you must take
+    off the covering item first.
+    """
+
+    key = "remove"
+    help_category = "Inventory and Equipment"
+
+    def func(self):
+        """
+        This performs the actual command.
+        """
+        caller = self.caller
+        clothing =  caller.search(self.args, candidates=caller.contents)
+        if not clothing:
+            caller.msg("Thing to remove must be carried or worn.")
+            return
+        if not clothing.db.worn:
+            caller.msg("You're not wearing that!")
+            return
+        if clothing.db.covered_by:
+            caller.msg("You have to take off %s first." % clothing.db.covered_by.name)
+            return
+        clothing.remove(caller)
+
+
 class InventoryCmdSet(CmdSet):
     def at_cmdset_creation(self):
         self.add(CmdInventory)
         self.add(CmdGet)
         self.add(CmdPut)
         self.add(CmdDrop)
+        self.add(CmdWear)
+        self.add(CmdRemove)
