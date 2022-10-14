@@ -6,8 +6,10 @@ set and has a single command defined on itself with the same name as its key,
 for allowing Characters to traverse the exit to its destination.
 
 """
-from evennia import DefaultExit
-
+from evennia import DefaultExit, utils, Command
+from evennia.contrib.slow_exit import SlowExit
+from commands.queue import CommandQueue
+from commands.movement import handle_movement_queue
 
 class Exit(DefaultExit):
     """
@@ -34,5 +36,43 @@ class Exit(DefaultExit):
                                         not be called if the attribute `err_traverse` is
                                         defined, in which case that will simply be echoed.
     """
+    def at_traverse(self, traversing_object, target_location):
+        """
+        Implements the actual traversal, using utils.delay to delay the move_to.
+        """
 
-    pass
+        # if the traverser has an Attribute move_speed, use that,
+        # otherwise default to "walk" speed
+        move_speed = traversing_object.db.move_speed or 4
+
+        def move_callback():
+            "This callback will be called by utils.delay after move_delay seconds."
+            source_location = traversing_object.location
+            command_queue = traversing_object.ndb.command_queue
+
+            if traversing_object.move_to(target_location):
+                self.at_after_traverse(traversing_object, source_location)
+                if command_queue:
+                    traversing_object.execute_cmd(command_queue.call_next())
+            else:
+                if self.db.err_traverse:
+                    # if exit has a better error message, let's use it.
+                    self.caller.msg(self.db.err_traverse)
+                else:
+                    # No shorthand error message. Call hook.
+                    self.at_failed_traverse(traversing_object)
+
+        # check if traversing object is already moving. If it is, call the queue version of the exit command
+        if traversing_object.ndb.currently_moving and not traversing_object.ndb.currently_moving.called:
+            handle_movement_queue(traversing_object, self.key)
+            return
+
+        traversing_object.msg("You start moving %s. It will take %s seconds." % (self.key, move_speed))
+        traversing_object.location.msg_contents(f"{traversing_object.name} starts moving {self.key} at a {move_speed}", exclude=traversing_object)
+        # create a delayed movement
+        t = utils.delay(move_speed, move_callback)
+        # we store the deferred on the character, this will allow us
+        # to abort the movement. We must use an ndb here since
+        # deferreds cannot be pickled.
+        traversing_object.ndb.currently_moving = t
+

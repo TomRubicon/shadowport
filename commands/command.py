@@ -5,10 +5,11 @@ Commands describe the input the account can do to the game.
 
 """
 
+import time
+from datetime import datetime
+
 from evennia.commands.command import Command as BaseCommand
-
-# from evennia import default_cmds
-
+from evennia import default_cmds
 
 class Command(BaseCommand):
     """
@@ -32,8 +33,6 @@ class Command(BaseCommand):
     """
 
     pass
-
-
 # -------------------------------------------------------------
 #
 # The default commands inherit from

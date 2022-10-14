@@ -12,6 +12,7 @@ just overloads its hooks to have it perform its function.
 
 """
 
+import random
 from evennia import DefaultScript
 
 
@@ -90,3 +91,26 @@ class Script(DefaultScript):
     """
 
     pass
+
+class MsgOnInterval(DefaultScript):
+    """
+    Send random messages from a list at an interval
+    """
+    def at_script_creation(self):
+        self.key = "msgoninterval"
+        self.desc = "Send random messages from a list at an interval"
+        self.interval = 20 # seconds
+        self.start_delay = True
+        self.lastrand = -1
+
+    def at_repeat(self):
+        if random.random() < .66:
+            return
+        self.send_random_message()
+
+    def send_random_message(self):
+        if not self.obj.db.msglist:
+            return
+        rand = random.randrange(0, len(self.obj.db.msglist))
+        self.obj.location.msg_contents(self.obj.db.msglist[rand])
+
