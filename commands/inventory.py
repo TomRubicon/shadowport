@@ -7,13 +7,24 @@ Commands for manipulating the players inventory.
 
 import re
 import itertools
+from collections import Counter
 from evennia.commands.command import Command
 from evennia.commands.default.muxcommand import MuxCommand
 from evennia import CmdSet, utils
 from typeclasses.clothing import single_type_count, clothing_type_count, get_worn_clothes
 from typeclasses.clothing import CLOTHING_OVERALL_LIMIT, CLOTHING_TYPE_LIMIT, WEARSTYLE_MAXLENGTH
 
-
+CATEGORY_PRIORITY = [
+        "weapon",
+        "ammo",
+        "clothing",
+        "medical",
+        "container",
+        "consumable",
+        "tool",
+        "material",
+        "misc"
+        ]
 # Helpers
 
 def display_contents(caller, empty_msg, carrying_msg, for_container=False):
@@ -22,53 +33,55 @@ def display_contents(caller, empty_msg, carrying_msg, for_container=False):
     if not items:
         string = empty_msg
     else:
-        table = utils.evtable.EvTable("", "|w|yName|n", "|w|yWeight|n",
-                              border="none")
-        table.reformat_column(1, width=60, align="l")
-        table.reformat_column(2, align="r", valign="b")
+        string = ""
+        
+        total_mass = 0
 
-        item_list = []
-        total_weight = 0
+        for category in CATEGORY_PRIORITY:
+            items_by_category = [item for item in items if item.attributes.get("category", "misc") == category]
+            if not items_by_category:
+                continue
 
-        for item in items:
-            if item.db.worn:
-                name = f"{item.name} |w(worn)|n"
-            else:
-                name = item.name
-            if for_container:
+            items_by_category = sorted(items_by_category, key=lambda itm: itm.name)
+            item_count = dict(Counter(item.name for item in items_by_category))
+            string += f"|w{category.capitalize()}:|n\n"
+            counted = []
+
+            for item in items_by_category:
+                if for_container:
+                    total_mass += item.get_mass_modified(caller.db.mass_reduction)
+                    mass = item.get_mass_modified(caller.db.mass_reduction)
+                else:
+                    total_mass += item.get_mass()
+                    mass = item.get_mass()
+                # Skip if the item has already been counted and is not worn.
+                if item.name in counted and not item.db.worn:
+                    continue
+                count = item_count[item.name]
                 if item.db.worn:
-                    name = f"{item.name} |w(worn)|n"
-                item_list.append({"name" : name, "mass" : item.get_mass_modified(caller.db.mass_reduction)}) 
-            else:
-                item_list.append({"name" : name, "mass" : item.get_mass()}) 
-
-        item_list = sorted(item_list, key=lambda itm: itm["name"])
-
-        for name, item in itertools.groupby(item_list, key=lambda itm: itm["name"]):
-            items = list(item)
-            count = len(items)
-            mass = 0
-            for i in items:
-                mass += i["mass"]
-            total_weight += mass
-            mass = f"|M{mass:.2f}|n"
-            count = f"|mx{count}|n"
-            name = f"{count} {name}"
-            table.add_row("|W*|n",name, mass)
-
-        string = f"|w{carrying_msg}: |n"
-        string += f"\n\n{table}\n\n" 
+                    string += f"    {item.get_numbered_name(1, caller)[0]} |m(worn)|n |Y[{mass:.2f} lbs]|n\n"
+                else:
+                    mass = 0
+                    notworn = [itm for itm in items_by_category if itm.name == item.name and not itm.db.worn]
+                    for itm in notworn:
+                        if for_container:
+                            mass += itm.get_mass_modified(caller.db.mass_reduction)
+                        else:
+                            mass += itm.get_mass()
+                    if count > 1:
+                        name = item.get_numbered_name(count, caller)[1]
+                    else:
+                        name = item.get_numbered_name(count, caller)[0]
+                    string += f"    {name} |Y[{mass:.2f} lbs]|n\n"
+                    counted.append(item.name)
         if for_container:
             capacity = caller.db.capacity
-            remaining_space = capacity - total_weight
-            string += f"|YTotal Weight Of Contents:|n |M{total_weight:.2f}|n/|M{capacity:.2f}|n"
-
+            remaining_space = capacity - total_mass
+            string += f"[|Y Total Weight:|n |M{total_mass:.2f}|n/|M{capacity:.2f}|n ]\n"
         else:
-            string += f"|YTotal Weight:|n |M{total_weight:.2f}|n\n"
-    
-    return string
+            string += f"[|Y Total Weight:|n |M{total_mass:.2f}|n ]\n"
 
-# Commands
+    return string
 
 class CmdInventory(Command):
     """

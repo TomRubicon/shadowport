@@ -143,6 +143,9 @@ def single_type_count(clothes_list, type):
 
 
 class Clothing(Object):
+    def at_object_creation(self):
+        self.db.category = "clothing"
+        
     def wear(self, wearer, wearstyle, quiet=False):
         """
         Sets clothes to 'worn' and optionally echoes to the room.

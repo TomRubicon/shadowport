@@ -30,6 +30,7 @@ class Container(Object):
         self.db.container = True
         self.db.capacity = 100
         self.db.mass_reduction = 0.90
+        self.db.category = "container"
 
     def return_appearance(self, looker, **kwargs):
         description = f"|y{self.get_display_name(looker).capitalize()}|n\n"

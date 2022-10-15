@@ -107,7 +107,7 @@ class Character(DefaultCharacter):
         if not looker:
             return ""
         # get description, build string
-        string = "|c%s|n\n" % self.get_display_name(looker)
+        string = "|y%s|n\n" % self.get_display_name(looker)
         desc = self.db.desc
         worn_string_list = []
         clothes_list = get_worn_clothes(self, exclude_covered=True)
