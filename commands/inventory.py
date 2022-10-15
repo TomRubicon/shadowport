@@ -36,6 +36,9 @@ def display_contents(caller, empty_msg, carrying_msg, for_container=False):
         string = ""
         
         total_mass = 0
+        
+        if for_container:
+            string += f"|wContents of {caller.name}:|n\n\n"
 
         for category in CATEGORY_PRIORITY:
             items_by_category = [item for item in items if item.attributes.get("category", "misc") == category]
