@@ -1,4 +1,4 @@
-""""
+"""
 Extended Room
 
 Evennia Contribution - Griatch 2012, vincent-lg 2019
@@ -93,7 +93,9 @@ from evennia import gametime
 from evennia import default_cmds
 from evennia import utils
 from evennia import CmdSet
+from evennia.utils.evtable import wrap
 from typeclasses.scripts.gametime import get_time_and_season 
+from commands.inventory import list_items_clean
 
 # error return function, needed by Extended Look command
 _AT_SEARCH_RESULT = utils.variable_from_module(*settings.SEARCH_AT_RESULT.rsplit(".", 1))
@@ -254,7 +256,47 @@ class Room(DefaultRoom):
         # ensures that our description is current based on time/season
         self.update_current_description()
         # run the normal return_appearance method, now that desc is updated.
-        return super(Room, self).return_appearance(looker, **kwargs)
+        # Room Name
+        string = f"|y{self.get_display_name(looker)}|n "
+        #Zone
+        string += f"(|Y{self.tags.get(category='zone')}|n) "
+        # Time
+        gtime = datetime.fromtimestamp(gametime.gametime(absolute=True))
+        string += f"|w{gtime.strftime('%I:%M')}|n|W{gtime.strftime('%p').lower()}|n\n"
+        # Desc
+        desc_string = wrap(f"{self.db.desc} \n", width=78)
+        for line in desc_string:
+            string += (line + "\n")
+        # furniture
+        furniture = str(list_items_clean(self, show_doing_desc=True, categories=["furniture"]))
+        if furniture:
+            furniture = f"{furniture}."
+            furniture = wrap(furniture, width=78)
+            for line in furniture:
+                string += (line + "\n")
+            # string += f"{furniture}.\n"
+        # items
+        items = str(list_items_clean(self, exclude=["furniture"]))
+        if items:
+            items_string = f"You see {items} on the ground."
+            items_string = wrap(items_string, width=78)
+            for line in items_string:
+                string += (line + "\n")
+        # players/mobs
+        mob_list = [mob for mob in self.contents if mob.is_typeclass("typeclasses.characters.Character") and mob != looker]
+        if mob_list:
+            for mob in mob_list:
+                string += f"|w{mob.get_display_name(looker)}|n"
+            string += " is standing here.\n"
+        # exits
+        exit_list = [exits for exits in self.contents if exits.is_typeclass("typeclasses.exits.Exit", exact=False)]
+        string += "|M[ Exits:|n  "
+        for exits in exit_list:
+            string += f"|W{exits.name}|n  "
+        string += "|M]|n"
+
+        # return super(Room, self).return_appearance(looker, **kwargs)
+        return string
 
     def update_current_description(self):
         """

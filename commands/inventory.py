@@ -26,6 +26,79 @@ CATEGORY_PRIORITY = [
         "misc"
         ]
 # Helpers
+def list_items_clean(caller, show_doing_desc=False, categories=None, exclude=None):
+    items = []
+    if categories:
+        for category in categories:
+            for item in caller.contents:
+                if item.is_typeclass("typeclasses.exits.Exit", exact=False):
+                    continue
+                if item.is_typeclass("typeclasses.characters.Character", exact=False):
+                    continue
+                if item.db.category == category:
+                    items.append(item)
+
+    elif exclude:
+        for excluded in exclude:
+            for item in caller.contents:
+                if item.db.category == excluded:
+                    continue
+                if item.is_typeclass("typeclasses.exits.Exit", exact=False):
+                    continue
+                if item.is_typeclass("typeclasses.characters.Character", exact=False):
+                    continue
+                items.append(item)
+    else:
+        items = [item for item in caller.contents]
+
+    items = sorted(items, key=lambda itm: itm.name)
+    item_count = dict(Counter(item.name for item in items))
+    counted = []
+    string = ""
+    # loop_max = len(items) - 1
+    loop_max = len(item_count)
+    caller.msg_contents(loop_max)
+
+    for loop, item in enumerate(items):
+        if item.name in counted:
+            continue
+
+        count = item_count[item.name]
+        if count > 1:
+            name = item.get_numbered_name(count, caller)[1]
+        else:
+            name = item.get_numbered_name(count, caller)[0]
+
+        doing_desc = ""
+        if show_doing_desc and item.db.doing_desc:
+            doing_desc = f" {item.db.doing_desc}"
+
+        prefix = ""
+        if show_doing_desc and item.db.doing_prefix:
+            prefix = f"{items.db.doing_prefix} "
+
+        name = f"{prefix}|w{name}|n{doing_desc}"
+
+        if loop == 0:
+            if loop_max == 1:
+                string += f"{name}"
+            elif loop_max == 2:
+                string += f"{name} "
+            else:
+                string += f"{name}, "
+        elif loop > 0 and loop < loop_max - 1:
+            if loop < loop_max - 2:
+                string += f"{name}, "
+            else:
+                string += f"{name} "
+        else:
+            string += f"and {name}"
+
+        counted.append(item.name)
+        loop += count
+
+    return string
+
 
 def display_contents(caller, empty_msg, carrying_msg, for_container=False):
     items = caller.contents
