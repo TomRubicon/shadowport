@@ -76,3 +76,6 @@ class Exit(DefaultExit):
         # deferreds cannot be pickled.
         traversing_object.ndb.currently_moving = t
 
+    def return_appearance(self, looker, **kwargs):
+        return self.destination.return_appearance(looker, **kwargs)
+
