@@ -51,29 +51,50 @@ def list_items_clean(caller, categories=None, exclude=None):
     else:
         items = [item for item in caller.contents]
 
+    items = sorted(items, key=lambda itm: itm.name)
     item_count = dict(Counter(item.name for item in items))
     counted = []
     string = ""
-    loop = 0
-    loop_max = len(items) - 1
+    # loop_max = len(items) - 1
+    loop_max = len(item_count)
     caller.msg_contents(loop_max)
 
-    for item in items:
+    for loop, item in enumerate(items):
         if item.name in counted:
             continue
+
         count = item_count[item.name]
         if count > 1:
             name = item.get_numbered_name(count, caller)[1]
         else:
             name = item.get_numbered_name(count, caller)[0]
-        if loop == 0 and loop_max == count - 1:
-            string += f"|w{name}|n"
-        elif loop == 0 and loop_max > 1:
-            string += f"|w{name}|n, "
-        elif loop > 0 and loop < loop_max:
-            string += f"|w{name}|n, "
-        elif loop == loop_max:
-            string += f"and |w{name}|n"
+
+        name = f"|w{name}|n"
+
+        if loop == 0:# and loop_max < 2:
+            if loop_max == 1:
+                string += f"{name}"
+            elif loop_max == 2:
+                string += f"{name} "
+            else:
+                string += f"{name}, "
+        elif loop > 0 and loop < loop_max - 1:
+            if loop < loop_max - 2:
+                string += f"{name}, "
+            else:
+                string += f"{name} "
+        else:
+            string += f"and {name}"
+
+        # if loop == 0 and loop_max == count - 1:
+        #     string += f"|w{name}|n"
+        # elif loop == 0 and loop_max > 0:
+        #     string += f"|w{name}|n, "
+        # elif loop > 0 and loop < loop_max:
+        #     string += f"|w{name}|n, "
+        # elif loop == loop_max:
+        #     string += f"and |w{name}|n"
+
         counted.append(item.name)
         loop += count
 
