@@ -268,9 +268,13 @@ class Room(DefaultRoom):
         for line in desc_string:
             string += (line + "\n")
         # furniture
-        furniture = str(list_items_clean(self, categories=["furniture"]))
+        furniture = str(list_items_clean(self, show_doing_desc=True, categories=["furniture"]))
         if furniture:
-            string += f"{furniture}\n"
+            furniture = f"{furniture}."
+            furniture = wrap(furniture, width=78)
+            for line in furniture:
+                string += (line + "\n")
+            # string += f"{furniture}.\n"
         # items
         items = str(list_items_clean(self, exclude=["furniture"]))
         if items:

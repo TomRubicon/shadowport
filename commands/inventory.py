@@ -26,7 +26,7 @@ CATEGORY_PRIORITY = [
         "misc"
         ]
 # Helpers
-def list_items_clean(caller, categories=None, exclude=None):
+def list_items_clean(caller, show_doing_desc=False, categories=None, exclude=None):
     items = []
     if categories:
         for category in categories:
@@ -69,9 +69,17 @@ def list_items_clean(caller, categories=None, exclude=None):
         else:
             name = item.get_numbered_name(count, caller)[0]
 
-        name = f"|w{name}|n"
+        doing_desc = ""
+        if show_doing_desc and item.db.doing_desc:
+            doing_desc = f" {item.db.doing_desc}"
 
-        if loop == 0:# and loop_max < 2:
+        prefix = ""
+        if show_doing_desc and item.db.doing_prefix:
+            prefix = f"{items.db.doing_prefix} "
+
+        name = f"{prefix}|w{name}|n{doing_desc}"
+
+        if loop == 0:
             if loop_max == 1:
                 string += f"{name}"
             elif loop_max == 2:
@@ -85,15 +93,6 @@ def list_items_clean(caller, categories=None, exclude=None):
                 string += f"{name} "
         else:
             string += f"and {name}"
-
-        # if loop == 0 and loop_max == count - 1:
-        #     string += f"|w{name}|n"
-        # elif loop == 0 and loop_max > 0:
-        #     string += f"|w{name}|n, "
-        # elif loop > 0 and loop < loop_max:
-        #     string += f"|w{name}|n, "
-        # elif loop == loop_max:
-        #     string += f"and |w{name}|n"
 
         counted.append(item.name)
         loop += count
