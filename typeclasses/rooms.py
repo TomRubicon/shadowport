@@ -264,6 +264,25 @@ class Room(DefaultRoom):
         gtime = datetime.fromtimestamp(gametime.gametime(absolute=True))
         string += f"|w{gtime.strftime('%I:%M')}|n|W{gtime.strftime('%p').lower()}|n\n"
         # Desc
+        if self.db.dark:
+            characters = [char for char in self.contents if char.is_typeclass("typeclasses.characters.Character", exact=False)]
+            lit_items = []
+            location_lit = self.search(
+                True,
+                attribute_name="lit",
+                quiet=True
+            )
+            if location_lit:
+                lit_items.append(location_lit)
+
+            for character in characters:
+                character_lit = character.search(True, attribute_name="lit", quiet=True)
+                if character_lit:
+                    lit_items.append(character_lit)
+            if not lit_items:
+                string += "|WIt is pitch black here. You can't make anything out.|n\n"
+                return string
+            
         desc_string = wrap(f"{self.db.desc} \n", width=78)
         for line in desc_string:
             string += (line + "\n")
