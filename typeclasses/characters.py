@@ -52,6 +52,9 @@ class Character(DefaultCharacter):
             destination: the location of the object after moving.
 
         """
+        if self.location.db.dark:
+            super().announce_move_from(destination, msg="Someone leaves {exit}.")
+            return
         super().announce_move_from(destination, msg="{object} leaves {exit}.")
 
     def announce_move_to(self, source_location, msg=None, mapping=None):
@@ -83,10 +86,12 @@ class Character(DefaultCharacter):
                 if o.location is destination and o.destination is origin
             ]
         the_exit = exits[0]
-        exit_msg = "{object} arrives from the {exit}."
+        exit_msg_obj = "{object}"
+        if destination.db.dark: exit_msg_obj = "Someone"
+        exit_msg = "%s arrives from the {exit}." % (exit_msg_obj)
         exit_dict = {"up":"above", "down":"below", "in":"inside", "out":"outside"}
         if str(the_exit) in exit_dict:
-            exit_msg = "{object} arrives from %s." % (exit_dict[str(the_exit)])
+            exit_msg = "%s arrives from %s." % (exit_msg_obj, exit_dict[str(the_exit)])
         super().announce_move_to(source_location, msg=exit_msg)
 
     def return_appearance(self, looker):
@@ -128,3 +133,9 @@ class Character(DefaultCharacter):
             string += "|/|/%s is not wearing anything." % self
         return string
 
+    def at_say(self, message, msg_self=None, msg_location=None, receivers=None, msg_receivers=None, **kwargs):
+        if self.location.db.dark:
+            super().at_say(message, msg_self='You say, "{speech}"', msg_location='Someone says, "{speech}"' )
+            return
+        
+        super().at_say(message, msg_self, msg_location, receivers, msg_receivers, **kwargs)

@@ -261,7 +261,14 @@ class CmdPut(MuxCommand):
                 caller.msg("This can't be put in a container.")
             else:
                 caller.msg(f"You put |w{obj.get_numbered_name(1, caller)[0]}|n into |w{container.name}|n.")
-                location.msg_contents(f"|w{caller.name}|n puts |w{obj.get_numbered_name(1,caller)[0]}|n into |w{container}|n.", exclude=caller)
+                caller_name = caller.name
+                item_name = obj.get_numbered_name(1, caller)[0]
+                container_name = container
+                if location.db.dark:
+                    caller_name = "Someone"
+                    item_name = "something"
+                    container_name = "something else"
+                location.msg_contents(f"|w{caller_name}|n puts |w{item_name}|n into |w{container_name}|n.", exclude=caller)
 
             if "all" not in self.switches:
                 return
@@ -360,7 +367,14 @@ class CmdGet(MuxCommand):
                 caller.msg("This can't be picked up.")
             else:
                 caller.msg(f"You get |w{obj.get_numbered_name(1, caller)[0]}|n{container_msg}.")
-                location.msg_contents(f"|w{caller.name}|n gets |w{obj.get_numbered_name(1,caller)[0]}|n{container_msg}.", exclude=caller)
+                caller_name = caller.name
+                obj_name = obj.get_numbered_name(1, caller)[0]
+                if location.db.dark:
+                    caller_name = "Someone"
+                    obj_name = "something"
+                    if container_msg != "":
+                        container_msg = " from |wsomething else|n."
+                location.msg_contents(f"|w{caller_name}|n gets |w{obj_name}|n{container_msg}.", exclude=caller)
                 obj.at_get(caller)
             
             if "all" not in self.switches:
@@ -386,6 +400,7 @@ class CmdDrop(MuxCommand):
         """implement command"""
 
         caller = self.caller
+        location = caller.location
         
         # drop
         if not self.lhs and not self.switches:
@@ -404,7 +419,7 @@ class CmdDrop(MuxCommand):
             ) 
 
         if not obj_list:
-            caller.msg(f"You aren't carrying {self.lhs}.")
+            caller.msg(f"You aren't carrying |w{self.lhs}|n.")
             return
 
         for obj in obj_list:
@@ -417,10 +432,15 @@ class CmdDrop(MuxCommand):
 
             success = obj.move_to(caller.location, quiet=True)
             if not success:
-                caller.msg(f"{obj.name} couldn't be dropped.")
+                caller.msg(f"|w{obj.name}|n couldn't be dropped.")
             else:
-                caller.msg(f"You drop {obj.name}.")
-                caller.location.msg_contents(f"{caller.name} drops {obj.name}", exclude=caller)
+                caller.msg(f"You drop |w{obj.name}|n.")
+                caller_name = caller.name
+                obj_name = obj.name
+                if location.db.dark:
+                    caller_name = "Someone"
+                    obj_name = "something"
+                caller.location.msg_contents(f"|w{caller_name}|n drops |w{obj_name}|n.", exclude=caller)
                 obj.at_drop(caller)
 
             # Only drop the first item if all is not specified.
