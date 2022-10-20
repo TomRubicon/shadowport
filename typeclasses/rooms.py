@@ -95,7 +95,7 @@ from evennia import utils
 from evennia import CmdSet
 from evennia.utils.evtable import wrap
 from typeclasses.scripts.gametime import get_time_and_season 
-from commands.inventory import list_items_clean
+import commands.inventory as inv
 
 # error return function, needed by Extended Look command
 _AT_SEARCH_RESULT = utils.variable_from_module(*settings.SEARCH_AT_RESULT.rsplit(".", 1))
@@ -121,6 +121,77 @@ MONTHS_PER_YEAR = 12
 SEASONAL_BOUNDARIES = (3 / 12.0, 6 / 12.0, 9 / 12.0)
 HOURS_PER_DAY = 24
 DAY_BOUNDARIES = (0, 6 / 24.0, 12 / 24.0, 18 / 24.0)
+
+# helpers
+
+def dark_aware_msg(message, location, mapping, mapping_dark, exclude=None):
+    """
+    Calls msg_contents for a location that changes based on whether or
+    not a room is dark or a character has night vision.
+
+    Args:
+        message (string): the message that should be sent to the room
+        location (obj): the room object that will make the msg_contents call
+        mapping (dict): mapping of formatting keys
+        mapping_dark (dict): mapping of formatting keys if the room is dark
+        exclude (object or list, optional): objects to exclude from the msg
+
+    Notes:
+
+    """
+    message_lit = message
+    for mapped, replacement in mapping.items():
+        message_lit = message_lit.replace(mapped, replacement) 
+    # if it is not dark, just send a message as normal
+    if not location.db.dark:
+        location.msg_contents(message_lit, exclude)
+        return
+
+    message_dark = message
+    for mapped, replacement in mapping_dark.items():
+        message_dark = message_dark.replace(mapped, replacement)
+
+    # grab all the characters in the location
+    characters = [character for character in location.contents if character.is_typeclass("typeclasses.characters.Character", exact=False)]
+    # init lists
+    lit_items = []
+    night_vision = []
+    normal_vision = []
+
+    # check location for lit items on the ground
+    location_lit_items = location.search(True, attribute_name="lit", quiet=True)
+    if location_lit_items:
+        lit_items.append(location_lit_items)
+
+    for character in characters:
+        # check if characters here are carrying lit items
+        carried_lit_items = character.search(True, attribute_name="lit", quiet=True)
+        if carried_lit_items:
+            lit_items.append(carried_lit_items)
+        # check if character has night vision.
+        if character.db.nightvision:
+            night_vision.append(character)
+        else:
+            normal_vision.append(character)
+
+    # if any lit items are present, send the lit message
+    if lit_items:
+        location.msg_contents(message_lit, exclude)
+        return
+
+    # if there are no lit items present, send message_dark to characters without
+    # nightvision
+    if exclude and exclude.is_typeclass("typeclasses.characters.Character"):# or type(exclude) is obj:
+        night_vision.append(exclude)
+        normal_vision.append(exclude)
+    elif type(exclude) is list:
+        night_vision.extend(exclude)
+        normal_vision.extend(exclude)
+
+    # send lit message and exclude those with normal vision
+    location.msg_contents(message_lit, normal_vision)
+    # send dark message and exclude those with night vision
+    location.msg_contents(message_dark, night_vision)
 
 class Room(DefaultRoom):
     """
@@ -264,7 +335,7 @@ class Room(DefaultRoom):
         gtime = datetime.fromtimestamp(gametime.gametime(absolute=True))
         string += f"|w{gtime.strftime('%I:%M')}|n|W{gtime.strftime('%p').lower()}|n\n"
         # Desc
-        if self.db.dark:
+        if self.db.dark and not looker.db.nightvision:
             characters = [char for char in self.contents if char.is_typeclass("typeclasses.characters.Character", exact=False)]
             lit_items = []
             location_lit = self.search(
@@ -287,7 +358,7 @@ class Room(DefaultRoom):
         for line in desc_string:
             string += (line + "\n")
         # furniture
-        furniture = str(list_items_clean(self, show_doing_desc=True, categories=["furniture"]))
+        furniture = str(inv.list_items_clean(self, show_doing_desc=True, categories=["furniture"]))
         if furniture:
             furniture = f"{furniture}."
             furniture = wrap(furniture, width=78)
@@ -295,7 +366,7 @@ class Room(DefaultRoom):
                 string += (line + "\n")
             # string += f"{furniture}.\n"
         # items
-        items = str(list_items_clean(self, exclude=["furniture"]))
+        items = str(inv.list_items_clean(self, exclude=["furniture"]))
         if items:
             items_string = f"You see {items} on the ground."
             items_string = wrap(items_string, width=78)
