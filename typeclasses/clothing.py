@@ -1,4 +1,5 @@
 from evennia.utils import list_to_string
+import typeclasses.rooms as rooms
 from typeclasses.objects import Object
 
 # Options start here.
@@ -179,12 +180,25 @@ class Clothing(Object):
         if quiet:
             return
         # Echo a message to the room
-        message = "%s puts on %s" % (wearer, self.name)
+        message = "|w{wearer}|n puts on |w{item_name}|n"
+        self_message = f"|wYou|n put on |w{self.name}|n"
         if wearstyle is not True:
-            message = "%s wears %s %s" % (wearer, self.name, wearstyle)
+            message = "|w{wearer}|n wears |w{item_name}|n {wearstyle}"
+            self_message = f"|wYou|n wear |w{self.name}|n {wearstyle}"
+        wearstyle = ""
         if to_cover:
-            message = message + ", covering %s" % list_to_string(to_cover)
-        wearer.location.msg_contents(message + ".")
+            message = message + ", covering |w{to_cover}|n"
+            self_message = self_message + f", covering |w{list_to_string(to_cover)}|n"
+        message = message + "."
+
+        rooms.dark_aware_msg(
+            message,
+            wearer.location,
+            {"{wearer}":wearer.name, "{item_name}":self.name, "{wearstyle}":wearstyle, "{to_cover}": list_to_string(to_cover)},
+            {"{wearer}":"Someone", "{item_name}":"something", "{wearstyle}":"", "{to_cover}":"something" },
+            wearer
+        )
+        wearer.msg(self_message)
 
     def remove(self, wearer, quiet=False):
         """
@@ -197,7 +211,8 @@ class Clothing(Object):
             quiet (bool): If False, does not message the room
         """
         self.db.worn = False
-        remove_message = "%s removes %s." % (wearer, self.name)
+        remove_message = "|w{wearer}|n removes |w{item_name}|n"
+        self_remove_message = f"|wYou|n remove |w{self.name}|n"
         uncovered_list = []
 
         # Check to see if any other clothes are covered by this object.
@@ -207,14 +222,18 @@ class Clothing(Object):
                 item.db.covered_by =False
                 uncovered_list.append(item.name)
         if len(uncovered_list) > 0:
-            remove_message = "%s removes %s, revealing %s." % (
-                wearer,
-                self.name,
-                list_to_string(uncovered_list),
-            )
+            remove_message = "|w{wearer}|n removes |w{item_name}|n, revealing |w{uncovered_list}|n"
+            self_remove_message = f"|wYou|n remove |w{self.name}|n, revealing |w{list_to_string(uncovered_list)}|n"
         # Echo a message to the room.
         if not quiet:
-            wearer.location.msg_contents(remove_message)
+            rooms.dark_aware_msg(
+                remove_message,
+                wearer.location,
+                {"{wearer}":wearer.name, "{item_name}":self.name, "{uncovered_list}":list_to_string(uncovered_list)},
+                {"{wearer}":"Someone", "{item_name}":"something", "{uncovered_list}":"something else"},
+                wearer
+            )
+            wearer.msg(self_remove_message)
 
     def at_get(self, getter):
         """

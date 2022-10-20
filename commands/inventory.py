@@ -11,6 +11,7 @@ from collections import Counter
 from evennia.commands.command import Command
 from evennia.commands.default.muxcommand import MuxCommand
 from evennia import CmdSet, utils
+import typeclasses.rooms as rooms
 from typeclasses.clothing import single_type_count, clothing_type_count, get_worn_clothes
 from typeclasses.clothing import CLOTHING_OVERALL_LIMIT, CLOTHING_TYPE_LIMIT, WEARSTYLE_MAXLENGTH
 
@@ -261,7 +262,17 @@ class CmdPut(MuxCommand):
                 caller.msg("This can't be put in a container.")
             else:
                 caller.msg(f"You put |w{obj.get_numbered_name(1, caller)[0]}|n into |w{container.name}|n.")
-                location.msg_contents(f"|w{caller.name}|n puts |w{obj.get_numbered_name(1,caller)[0]}|n into |w{container}|n.", exclude=caller)
+                caller_name = f"|w{caller.name}|n"
+                item_name = f"|w{obj.get_numbered_name(1, caller)[0]}|n"
+                container_name = f"|w{container}|n"
+                
+                rooms.dark_aware_msg(
+                    "{character} puts {item_name} into {container_name}.",
+                    location,
+                    {"{character}":caller_name, "{item_name}":item_name, "{container_name}":container_name},
+                    {"{character}":"|wSomeone|n", "{item_name}":"|wsomething|n", "{container_name}":"|wsomething else|n"},
+                    caller
+                )
 
             if "all" not in self.switches:
                 return
@@ -293,6 +304,7 @@ class CmdGet(MuxCommand):
         caller = self.caller
         location = caller.location
         container_msg = ""
+        container_msg_dark = ""
 
         # get
         if not self.lhs and not self.switches:
@@ -305,6 +317,7 @@ class CmdGet(MuxCommand):
                 if not container:
                     return
                 container_msg = f" from |w{container.name}|n"
+                container_msg_dark = f" from |wsomething else|n"
                 obj_list = [obj for obj in container.contents if obj !=caller and obj.access(caller, "get")]
             else:
                 obj_list = [obj for obj in location.contents if obj != caller and obj.access(caller, "get")]
@@ -315,6 +328,7 @@ class CmdGet(MuxCommand):
                 if not container:
                     return
                 container_msg = f" from |w{container.name}|n"
+                container_msg_dark = f" from |wsomething else|n"
                 obj_list = caller.search(
                     self.lhs,
                     location=container,
@@ -360,7 +374,15 @@ class CmdGet(MuxCommand):
                 caller.msg("This can't be picked up.")
             else:
                 caller.msg(f"You get |w{obj.get_numbered_name(1, caller)[0]}|n{container_msg}.")
-                location.msg_contents(f"|w{caller.name}|n gets |w{obj.get_numbered_name(1,caller)[0]}|n{container_msg}.", exclude=caller)
+                caller_name = caller.name
+                obj_name = obj.get_numbered_name(1, caller)[0]
+                rooms.dark_aware_msg(
+                    "|w{character}|n gets |w{obj_name}|n{container_msg}.",
+                    location,
+                    {"{character}":caller_name, "{obj_name}":obj_name, "{container_msg}":container_msg},
+                    {"{character}":"Someone", "{obj_name}":"something", "{container_msg}":container_msg_dark},
+                    caller
+                        )
                 obj.at_get(caller)
             
             if "all" not in self.switches:
@@ -386,6 +408,7 @@ class CmdDrop(MuxCommand):
         """implement command"""
 
         caller = self.caller
+        location = caller.location
         
         # drop
         if not self.lhs and not self.switches:
@@ -404,7 +427,7 @@ class CmdDrop(MuxCommand):
             ) 
 
         if not obj_list:
-            caller.msg(f"You aren't carrying {self.lhs}.")
+            caller.msg(f"You aren't carrying |w{self.lhs}|n.")
             return
 
         for obj in obj_list:
@@ -417,10 +440,23 @@ class CmdDrop(MuxCommand):
 
             success = obj.move_to(caller.location, quiet=True)
             if not success:
-                caller.msg(f"{obj.name} couldn't be dropped.")
+                caller.msg(f"|w{obj.name}|n couldn't be dropped.")
             else:
-                caller.msg(f"You drop {obj.name}.")
-                caller.location.msg_contents(f"{caller.name} drops {obj.name}", exclude=caller)
+                caller.msg(f"You drop |w{obj.name}|n.")
+                caller_name = caller.name
+                obj_name = obj.get_numbered_name(1, caller)[0]
+                
+                rooms.dark_aware_msg(
+                   "|w{character}|n drops |w{obj_name}|n.",
+                   location,
+                   {"{character}":caller_name, "{obj_name}":obj_name},
+                   {"{character}":"Someone", "{obj_name}":"something"},
+                   caller
+                )
+                # if location.db.dark:
+                #     caller_name = "Someone"
+                #     obj_name = "something"
+                # caller.location.msg_contents(f"|w{caller_name}|n drops |w{obj_name}|n.", exclude=caller)
                 obj.at_drop(caller)
 
             # Only drop the first item if all is not specified.

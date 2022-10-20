@@ -9,6 +9,7 @@ import evennia
 from evennia.commands.command import Command as BaseCommand
 from evennia import CmdSet
 from evennia.utils import search
+import typeclasses.rooms as rm
 from typeclasses.scripts.utils import get_direction
 
 class CmdYell(BaseCommand):
@@ -36,6 +37,13 @@ class CmdYell(BaseCommand):
         for room in rooms:
             if room == this_room:
                 room.msg_contents(f'{caller} yells, "{msg}".', exclude=self.caller)
+                rm.dark_aware_msg(
+                    '{caller} yells, "{msg}".',
+                    this_room,
+                    {"{caller}":caller.name, "{msg}":msg},
+                    {"{caller}":"Someone", "{msg}":msg},
+                    caller
+                )
             else:
                 room_coords = (room.db.x, room.db.y, room.db.z)
                 dir = get_direction(coords, room_coords)
