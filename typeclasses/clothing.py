@@ -180,16 +180,13 @@ class Clothing(Object):
         if quiet:
             return
         # Echo a message to the room
-        # message = "%s puts on %s" % (wearer, self.name)
         message = "|w{wearer}|n puts on |w{item_name}|n"
         self_message = f"|wYou|n put on |w{self.name}|n"
         if wearstyle is not True:
             message = "|w{wearer}|n wears |w{item_name}|n {wearstyle}"
             self_message = f"|wYou|n wear |w{self.name}|n {wearstyle}"
-            # message = "%s wears %s %s" % (wearer, self.name, wearstyle)
         wearstyle = ""
         if to_cover:
-            # message = message + ", covering %s" % list_to_string(to_cover)
             message = message + ", covering |w{to_cover}|n"
             self_message = self_message + f", covering |w{list_to_string(to_cover)}|n"
         message = message + "."
@@ -202,7 +199,6 @@ class Clothing(Object):
             wearer
         )
         wearer.msg(self_message)
-        # wearer.location.msg_contents(message + ".")
 
     def remove(self, wearer, quiet=False):
         """
@@ -215,7 +211,6 @@ class Clothing(Object):
             quiet (bool): If False, does not message the room
         """
         self.db.worn = False
-        # remove_message = "%s removes %s." % (wearer, self.name)
         remove_message = "|w{wearer}|n removes |w{item_name}|n"
         self_remove_message = f"|wYou|n remove |w{self.name}|n"
         uncovered_list = []

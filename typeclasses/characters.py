@@ -66,7 +66,6 @@ class Character(DefaultCharacter):
                 {"{character}":"Someone", "{exit}":exit_name},
                 self
             )
-            # super().announce_move_from(destination, msg="Someone leaves {exit}.")
             return
         super().announce_move_from(destination, msg="{object} leaves {exit}.")
 
@@ -157,7 +156,6 @@ class Character(DefaultCharacter):
 
     def at_say(self, message, msg_self=None, msg_location=None, receivers=None, msg_receivers=None, **kwargs):
         if self.location.db.dark:
-            # super().at_say(message, msg_self='You say, "{speech}"', msg_location='Someone says, "{speech}"' )
             message_location = '{character} says, "%s"' % (message)
             rooms.dark_aware_msg(
                 message_location,
