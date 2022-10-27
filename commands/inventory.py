@@ -432,15 +432,15 @@ class CmdDrop(MuxCommand):
 
         for obj in obj_list:
             if not obj:
-                return
+                continue
             
             if obj.db.worn:
                 caller.msg(f"|w{obj.name}|n is worn. |wRemove|n it before dropping.")
-                return
+                continue
 
             # Call the object script's at_before_drop() method.
             if not obj.at_before_drop(caller):
-                return
+                continue
 
             success = obj.move_to(caller.location, quiet=True)
             if not success:
