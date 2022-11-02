@@ -168,3 +168,49 @@ class Character(DefaultCharacter):
             return
         
         super().at_say(message, msg_self, msg_location, receivers, msg_receivers, **kwargs)
+
+    @property
+    def health(self):
+        if self.db.vitals["health"] is None:
+            self.db.vitals["health"] = 10
+        return self.db.vitals["health"]
+
+    @health.setter
+    def health(self, value):
+        if value > self.health_max:
+            self.db.vitals["health"] = self.health_max
+        else:
+            self.db.vitals["health"] = value
+        if self.db.vitals["health"] <= 0:
+            self.db.vitals["health"] = 0
+            self.death()
+
+    @property
+    def health_max(self):
+        if self.db.vitals["health_max"] is None:
+            self.db.vitals["health_max"] = 10
+        return self.db.vitals["health_max"]
+
+    @health_max.setter
+    def health_max(self, value):
+        self.db.vitals["health"] = value
+
+    def full_heal(self):
+        self.health = self.health_max
+        self.msg("|gYou feel completely healed!")
+        return
+
+    def change_health(self, ammount, quiet=False):
+        msg_color = "|w"
+        if ammount < 0:
+            msg_color = "|r"
+        elif ammount > 0:
+            msg_color = "|g"
+        self.msg(f"{msg_color}Health changed by {ammount}.|n")
+        self.health += ammount
+        self.msg(f"Current health: {self.health} / {self.health_max}")
+        return
+
+    def death(self):
+        self.msg("|r You are have died!!")
+        return
