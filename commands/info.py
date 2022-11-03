@@ -7,11 +7,21 @@ Commands that display character information.
 
 from evennia import CmdSet
 from evennia.utils import evtable
+from evennia.contrib import health_bar
 from commands.command import Command
 
 # helpers
 def format_stat(stat):
     return f"|Y[|n |m{stat}|n |Y]|n"
+
+def stat_bar(stat, cur_val, max_val, colors=['R', 'Y', 'G', 'G']):
+    bar = f"|w{stat}|n  "
+    bar += health_bar.display_meter(cur_val, max_val, 30, 
+                                    fill_color=colors,
+                                    empty_color="X", 
+                                    show_values=False)
+    bar += f" |Y[|n {cur_val}/{max_val} |Y]|n"
+    return bar
 
 
 class CmdSheet(Command):
@@ -27,7 +37,7 @@ class CmdSheet(Command):
     """
 
     key = "sheet"
-    aliases = ["score", "stats", "sc", "st", "sh"]
+    aliases = ["score", "stats", "sc", "sh"]
     help_category = "Info"
     
     def func(self):
@@ -80,6 +90,38 @@ class CmdSheet(Command):
 
         return
 
+class CmdStatus(Command):
+    """
+    status
+
+    Usage:
+        status
+        st
+
+    Display your health, hunger, thirst, money and other important information.
+    """
+
+    key = "status"
+    aliases = ["st"]
+    help_category = "Info"
+
+    def func(self):
+        caller = self.caller
+
+        vitals = caller.attributes.get("vitals", {})
+        health = vitals.get("health", 10)
+        health_max = vitals.get("health_max", 10)
+        thirst = vitals.get("thirst", 0)
+        hunger = vitals.get("hunger", 0)
+        sanity = vitals.get("sanity", 1000)
+        
+        caller.msg(stat_bar("Health", health, health_max))
+        caller.msg(stat_bar("Thirst", thirst, 500, colors=["C"]))
+        caller.msg(stat_bar("Hunger", hunger, 500, colors=["Y"]))
+        caller.msg(stat_bar("Sanity", sanity, 1000, colors=["M"]))
+
+
 class InfoCmdSet(CmdSet):
     def at_cmdset_creation(self):
         self.add(CmdSheet)
+        self.add(CmdStatus)
