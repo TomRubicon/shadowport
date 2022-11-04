@@ -8,7 +8,8 @@ creation commands.
 
 """
 from evennia import DefaultCharacter
-from evennia.utils import list_to_string
+from evennia import TICKER_HANDLER as tickerhandler
+from evennia.utils import list_to_string, search
 import typeclasses.rooms as rooms
 from typeclasses.clothing import get_worn_clothes
 
@@ -169,6 +170,12 @@ class Character(DefaultCharacter):
         
         super().at_say(message, msg_self, msg_location, receivers, msg_receivers, **kwargs)
 
+    def at_object_creation(self):
+        super().at_object_creation()
+        self.db.vitals = {"health":10,
+                          "health_max":10}
+        tickerhandler.add(30, self.on_tick)
+
     @property
     def health(self):
         if self.db.vitals["health"] is None:
@@ -195,9 +202,10 @@ class Character(DefaultCharacter):
     def health_max(self, value):
         self.db.vitals["health"] = value
 
-    def full_heal(self):
+    def full_heal(self, quiet=False):
         self.health = self.health_max
-        self.msg("|gYou feel completely healed!")
+        if not quiet:
+            self.msg("|gYou feel completely healed!")
         return
 
     def change_health(self, ammount, quiet=False):
@@ -211,6 +219,18 @@ class Character(DefaultCharacter):
         self.msg(f"Current health: {self.health} / {self.health_max}")
         return
 
+    def on_tick(self):
+        if self.health < self.health_max:
+            self.change_health(2)
+
     def death(self):
         self.msg("|r You are have died!!")
+        limbo = search.search_object("#2", use_dbref=True, exact=True)
+        for item in self.contents:
+            item.move_to(self.location, quiet=True)
+            if item.db.worn:
+                item.db.worn = False
+
+        self.move_to(limbo[0], quiet=True)
+        self.full_heal(quiet=True)
         return
