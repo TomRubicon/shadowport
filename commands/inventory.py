@@ -567,6 +567,89 @@ class CmdRemove(MuxCommand):
             return
         clothing.remove(caller)
 
+class CmdUse(MuxCommand):
+    """
+    Use an item on your self or someone else.
+
+    Usage:
+      use <obj>
+      use <obj> on <character>
+
+    """
+
+    key = "use"
+    help_category = "Inventory and Equipment"
+    locks = "cmd:all()"
+    rhs_split = ("=", " on ")
+    adjective = "usable"
+
+    def func(self):
+        """
+        This performs the actual command
+        """
+        caller = self.caller
+        target = None
+        
+        if not self.lhs:
+            caller.msg(f"{self.key.capitalize()} what?")
+            return
+        # find item in inventory
+        item = caller.search(
+            self.lhs,
+            location=caller,
+            use_nicks=True,
+            quiet=True
+        )
+
+        if not item:
+            caller.msg(f"You aren't carrying |w{self.lhs}|n.")
+            return
+        item = item[0]
+
+        # check if consumable
+        if not item.is_typeclass("typeclasses.objects.Consumable"):
+            caller.msg(f"|w{item.name}|n is not {self.adjective}.")
+            return
+
+        # check if this consumable is a USE type. (as opposed to eat or drink)
+        if not item.db.consume_type == self.key:
+            caller.msg(f"|w{item.name}|n is not {self.adjective}. Try the |w{item.db.consume_type}|n command instead.")
+            return
+
+        # check for target
+        if self.rhs:
+            target = caller.search(
+                self.rhs,
+                location=caller.location,
+                use_nicks=True,
+                quiet=True
+            )
+            target = target[0]
+
+            if not target:
+                caller.msg(f"No one named |w{self.rhs} here.")
+                return
+
+            if not target.is_typeclass("typeclasses.characters.Character"):
+                caller.msg(f"{target.name} is not a character.")
+                return
+        
+        item.consume(caller, target)
+        return
+
+class CmdEat(CmdUse):
+    """
+    Eat something from your inventory.
+
+    Usage:
+      eat <obj>
+
+    """
+    
+    key = "eat"
+    help_category = "Invetory and Equipment"
+    locks = "cmd:all()"
+    adjective = "edible"
 
 class InventoryCmdSet(CmdSet):
     def at_cmdset_creation(self):
@@ -576,3 +659,5 @@ class InventoryCmdSet(CmdSet):
         self.add(CmdDrop)
         self.add(CmdWear)
         self.add(CmdRemove)
+        self.add(CmdUse)
+        self.add(CmdEat)
