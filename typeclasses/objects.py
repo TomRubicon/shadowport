@@ -17,6 +17,13 @@ import commands.inventory as inv_utils
 import typeclasses.rooms as rooms
 from world import rules
 
+PUDDLE_PREFIX = {1:"tiny",
+                 3:"small",
+                 6:"medium",
+                 12:"large",
+                 22:"huge",
+                 40:"massive"}
+
 class Object(DefaultObject):
     def get_mass(self, modifier=1.0):
         mass = self.attributes.get("mass", 1)
@@ -89,3 +96,42 @@ class Consumable(Object):
         if self.db.uses <= 0:
             user.msg(f"The {self.name} has been used up.")
             self.delete()
+
+class Liquid(Consumable):
+    def at_object_creation(self):
+        super().at_object_creation()
+        self.db.consome_type = "drink"
+        self.db.original_name = self.name
+
+    def return_appearance(self, looker, **kwargs):
+        string = super().return_appearance(looker, **kwargs)
+        plural = "" if self.db.uses == 1 else "s"
+        are_is = "is" if self.db.uses == 1 else "are"
+        string += f"\nThere {are_is} {self.db.uses} unit{plural} of fluid here."
+        return string
+
+    def set_puddle_name(self):
+        prefix = PUDDLE_PREFIX.get(self.db.uses) or PUDDLE_PREFIX[
+                 min(PUDDLE_PREFIX.keys(), key=lambda key: abs(key-self.db.uses))]
+        self.name = f"{prefix} puddle of {self.db.original_name}"
+
+    def at_drop(self, dropper, **kwargs):
+        super().at_drop(dropper, **kwargs)
+        for obj in dropper.location.contents:
+            if obj is self:
+                continue
+
+            if (obj.is_typeclass("typeclasses.objects.Liquid") and 
+                obj.db.original_name == self.db.original_name):
+                self.db.uses += obj.db.uses
+                location = dropper.location
+                location.msg_contents(f"{obj.name} is absorbed into {self.name}. {self.name} now has {self.db.uses} uses.")
+                obj.delete()
+        self.set_puddle_name()
+
+    def at_before_get(self, getter, **kwargs):
+        getter.msg("Getting object")
+        self.name = self.db.original_name
+        return True
+
+    
