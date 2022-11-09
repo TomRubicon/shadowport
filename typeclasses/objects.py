@@ -33,7 +33,14 @@ class Object(DefaultObject):
         mass = self.attributes.get("mass", 1)
         return mass * modifier
 
-class Container(Object):
+class ContainerMassMixin(Object):
+    def get_mass(self, modifier=1.0):
+        return super().get_mass(self.db.mass_reduction)
+
+    def get_contents_mass(self):
+        return sum(obj.get_mass_modified(self.db.mass_reduction) for obj in self.contents)
+
+class Container(ContainerMassMixin, Object):
     def at_object_creation(self):
         self.db.container = True
         self.db.capacity = 100
@@ -47,12 +54,6 @@ class Container(Object):
         items = inv_utils.display_contents(self, "It is empty.", "Contents", for_container=True)
         description += f"\n\n{items}"
         return description
-
-    def get_mass(self, modifier=1.0):
-        return super().get_mass(self.db.mass_reduction)
-    
-    def get_contents_mass(self):
-        return sum(obj.get_mass_modified(self.db.mass_reduction) for obj in self.contents)
 
 class Consumable(Object):
     def at_object_creation(self):
@@ -100,7 +101,9 @@ class Consumable(Object):
 class Liquid(Consumable):
     def at_object_creation(self):
         super().at_object_creation()
-        self.db.consome_type = "drink"
+        self.locks.add("get:false()")
+        self.db.get_err_msg = "You can't |wget|n liquids with your bare hands. Try |wfilling|n a container instead."
+        self.db.consume_type = "drink"
         self.db.original_name = self.name
 
     def return_appearance(self, looker, **kwargs):
@@ -134,4 +137,14 @@ class Liquid(Consumable):
         self.name = self.db.original_name
         return True
 
-    
+class LiquidContainer(ContainerMassMixin, Object):
+    def at_object_creation(self):
+        self.db.liquid_container = True
+        self.db.capacity = 5
+        self.db.mass_reduction = 1
+        self.db.category = "container"
+
+    def return_appearance(self, looker, **kwargs):
+        string = super().return_appearance(looker, **kwargs)
+        string += f"\nIt is filled with (liquid). It is half full."
+        return string
