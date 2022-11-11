@@ -651,6 +651,20 @@ class CmdEat(CmdUse):
     locks = "cmd:all()"
     adjective = "edible"
 
+class CmdDrink(CmdUse):
+    """
+    Drink something from a container in your inventory.
+
+    Usage:
+      drink <obj>
+
+    """
+
+    key = "drink"
+    help_category = "Inventory and Equipment"
+    locks = "cmd:all()"
+    adjective = "drinkable"
+
 class InventoryCmdSet(CmdSet):
     def at_cmdset_creation(self):
         self.add(CmdInventory)

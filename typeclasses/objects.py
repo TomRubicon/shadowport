@@ -128,7 +128,7 @@ class Liquid(Consumable):
                 obj.db.original_name == self.db.original_name):
                 self.db.uses += obj.db.uses
                 location = dropper.location
-                location.msg_contents(f"{obj.name} is absorbed into {self.name}. {self.name} now has {self.db.uses} uses.")
+                location.msg_contents(f"{obj.name} is absorbed into {self.name}. {self.name} now has {self.db.uses} units.")
                 obj.delete()
         self.set_puddle_name()
 
@@ -143,6 +143,12 @@ class LiquidContainer(ContainerMassMixin, Object):
         self.db.capacity = 5
         self.db.mass_reduction = 1
         self.db.category = "container"
+
+    def at_object_receive(self, moved_obj, source_location, **kwargs):
+        super().at_object_receive(moved_obj, source_location, **kwargs)
+
+    def at_object_leave(self, moved_obj, source_location, **kwargs):
+        super().at_object_leave(moved_obj, source_location, **kwargs)
 
     def return_appearance(self, looker, **kwargs):
         string = super().return_appearance(looker, **kwargs)
