@@ -583,6 +583,18 @@ class CmdUse(MuxCommand):
     rhs_split = ("=", " on ")
     adjective = "usable"
 
+    def find_item(self, caller):
+        item = caller.search(
+            self.lhs,
+            location=caller,
+            use_nicks=True,
+            quiet=True,
+        )
+        if not item:
+            caller.msg(f"You aren't carrying |w{self.lhs}|n.")
+            return
+        return item[0]
+
     def func(self):
         """
         This performs the actual command
@@ -594,17 +606,10 @@ class CmdUse(MuxCommand):
             caller.msg(f"{self.key.capitalize()} what?")
             return
         # find item in inventory
-        item = caller.search(
-            self.lhs,
-            location=caller,
-            use_nicks=True,
-            quiet=True
-        )
+        item = self.find_item(caller)
 
         if not item:
-            caller.msg(f"You aren't carrying |w{self.lhs}|n.")
             return
-        item = item[0]
 
         # check if consumable
         if not item.is_typeclass("typeclasses.objects.Consumable"):
@@ -664,6 +669,23 @@ class CmdDrink(CmdUse):
     help_category = "Inventory and Equipment"
     locks = "cmd:all()"
     adjective = "drinkable"
+
+    def find_item(self, caller):
+        item = caller.search(
+            self.lhs,
+            location=caller,
+            use_nicks=True,
+            quiet=True,
+        )
+        if not item:
+            caller.msg(f"You aren't carrying |w{self.lhs}|n.")
+            return
+
+        if not item[0].contents:
+            caller.msg(f"The {item[0].name} is empty.")
+            return
+
+        return item[0].contents[0]
 
 class CmdFill(MuxCommand):
     """

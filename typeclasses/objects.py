@@ -13,6 +13,7 @@ inheritance.
 
 import itertools
 from evennia import DefaultObject, utils
+from evennia.objects.models import ObjectDB
 import commands.inventory as inv_utils
 import typeclasses.rooms as rooms
 from world import rules
@@ -118,27 +119,12 @@ class Liquid(Consumable):
                  min(PUDDLE_PREFIX.keys(), key=lambda key: abs(key-self.db.uses))]
         self.name = f"{prefix} puddle of {self.db.original_name}"
 
-    # def at_drop(self, dropper, **kwargs):
-    #     super().at_drop(dropper, **kwargs)
-    #     for obj in dropper.location.contents:
-    #         if obj is self:
-    #             continue
-
-    #         if (obj.is_typeclass("typeclasses.objects.Liquid") and 
-    #             obj.db.original_name == self.db.original_name):
-    #             self.db.uses += obj.db.uses
-    #             location = dropper.location
-    #             location.msg_contents(f"{obj.name} is absorbed into {self.name}. {self.name} now has {self.db.uses} units.")
-    #             obj.delete()
-    #     self.set_puddle_name()
-
     def at_after_move(self, source_location, **kwargs):
         super().at_after_move(source_location, **kwargs)
         if not self.location.is_typeclass("typeclasses.rooms.Room"):
             self.location.msg_contents("Not in a room")
             return 
 
-        self.location.msg_contents("In a room")
         for obj in self.location.contents:
             if obj is self:
                 continue
@@ -146,7 +132,7 @@ class Liquid(Consumable):
             if (obj.is_typeclass("typeclasses.objects.Liquid")
                 and obj.db.original_name == self.db.original_name):
                 self.db.uses += obj.db.uses
-                target_location.msg_contents(f"{obj.name} is absorbed into {self.name}. {self.name} now has {self.db.uses} units.")
+                self.location.msg_contents(f"{obj.name} is absorbed into {self.name}. {self.name} now has {self.db.uses} units.")
                 obj.delete()
         self.set_puddle_name()
 
@@ -162,12 +148,6 @@ class LiquidContainer(ContainerMassMixin, Object):
         self.db.mass_reduction = 1
         self.db.category = "container"
 
-    # def return_contents(self):
-    #     if not self.contents:
-    #         return False
-    #     return {"name":self.contents[0].db.original_name, 
-    #             "units":self.contents[0].db.uses}        
-
     def fill(self, source, caller=None):
         # If source is a liquid container, get liquid from container
         if source.is_typeclass("typeclasses.objects.LiquidContainer"):
@@ -179,7 +159,10 @@ class LiquidContainer(ContainerMassMixin, Object):
 
         # Check capacity
         capacity = self.return_capacity()
-        
+        if capacity <= 0:
+            if caller: caller.msg(f"The {self.name} is already full.")
+            return
+
         # container has liquid
         if self.contents:
             # Is the source liquid the same as the container contents
@@ -192,8 +175,9 @@ class LiquidContainer(ContainerMassMixin, Object):
         # no liquid in container
         else:
             if source.db.uses > capacity:
-                copy = source.copy(source.db.original_name)
+                copy = ObjectDB.objects.copy_object(source)
                 copy.db.uses = capacity
+                copy.name = copy.db.original_name
                 copy.move_to(self, quiet=True)
                 source.db.uses -= capacity
             else:
@@ -219,7 +203,7 @@ class LiquidContainer(ContainerMassMixin, Object):
         if not self.contents:
             if caller: caller.msg(f"{self.name} has no liquid to dump.")
             return False
-        
+
         self.contents[0].move_to(location, quiet=True)
         return True
 
