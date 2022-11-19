@@ -647,7 +647,7 @@ class CmdEat(CmdUse):
     """
     
     key = "eat"
-    help_category = "Invetory and Equipment"
+    help_category = "Inventory and Equipment"
     locks = "cmd:all()"
     adjective = "edible"
 
@@ -665,6 +665,123 @@ class CmdDrink(CmdUse):
     locks = "cmd:all()"
     adjective = "drinkable"
 
+class CmdFill(MuxCommand):
+    """
+    Fill a container with a liquid.
+
+    Usage:
+      fill <obj> from <source>
+
+    """
+
+    key = "fill"
+    help_category = "Inventory and Equipment"
+    locks = "cmd:all()"
+    rhs_split = ("=", " from ", " with ")
+
+    def func(self):
+        caller = self.caller
+        location = caller.location
+        
+        # Return if no args
+        if not self.lhs:
+            caller.msg("Fill what?")
+            return
+
+        # find LiquidContainer to fill
+        container = caller.search(
+            self.lhs,
+            location=[location, caller],
+            use_nicks=True,
+            quiet=True
+        )
+
+        # if no container
+        if not container:
+            caller.msg(f"You aren't carrying |w{self.lhs}|n.")
+            return
+
+        # check if item is liquid container
+        if not container[0].is_typeclass("typeclasses.objects.LiquidContainer"):
+            caller.msg(f"|w{container[0].name}|n can't be filled with liquid.")
+            return
+
+        # check if source is specified
+        if not self.rhs:
+            caller.msg(f"Fill |w{container[0].name}|n with what?")
+            return
+        
+        # find source to fill from
+        source = caller.search(
+            self.rhs,
+            location=[location, caller],
+            use_nicks=True,
+            quiet=True
+        )
+
+        # if no source
+        if not source:
+            caller.msg(f"Can't find {self.rhs} to fill from.")
+            return
+
+        # check if source is another container or a puddle
+        if (
+            not source[0].is_typeclass("typeclasses.objects.LiquidContainer")
+            and not source[0].is_typeclass("typeclasses.objects.Liquid")
+        ):
+            caller.msg(f"|w{source[0].name}|n is not a liquid or a container.")
+            return
+        
+        container[0].fill(source[0], caller)
+
+class CmdDump(MuxCommand):
+    """
+    Dump the contents of a container filled with liquid onto the ground.
+
+    Usage:
+      dump <obj>
+
+    """
+
+    key = "dump"
+    help_category = "Inventory and Equipment"
+    locks = "cmd:all()"
+
+    def func(self):
+        caller = self.caller
+        location = caller.location
+
+        if not self.lhs:
+            caller.msg("Dump what?")
+            return
+
+        container = caller.search(
+            self.lhs,
+            location=caller,
+            use_nicks=True,
+            quiet=True
+        )
+
+        if not container:
+            caller.msg(f"You aren't carrying |w{self.lhs}|n.")
+            return
+
+        if not container[0].is_typeclass("typeclasses.objects.LiquidContainer"):
+            caller.msg("You can't dump this.")
+            return
+
+        liquid = container[0].contents[0].name
+        success = container[0].dump(location)
+        if success:
+            caller.msg(f"You dump the |w{container[0].name}|n filled with |w{liquid}|n onto the ground.")
+            rooms.dark_aware_msg(
+                "|w{character}|n dumps |w{object}|n filled with |w{liquid}|n onto the ground.",
+                location,
+                {"{character}":caller.name, "{object}":container[0].name, "{liquid}":liquid},
+                {"{character}":"Someone", "{object}":"something", "{liquid}":"something"},
+                caller
+            )
+
 class InventoryCmdSet(CmdSet):
     def at_cmdset_creation(self):
         self.add(CmdInventory)
@@ -675,3 +792,6 @@ class InventoryCmdSet(CmdSet):
         self.add(CmdRemove)
         self.add(CmdUse)
         self.add(CmdEat)
+        self.add(CmdDrink)
+        self.add(CmdFill)
+        self.add(CmdDump)
