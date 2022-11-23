@@ -174,7 +174,15 @@ class Character(DefaultCharacter):
         super().at_object_creation()
         self.db.vitals = {"health":10,
                           "health_max":10}
+        # tickerhandler.add(30, self.on_tick)
+
+    def at_post_puppet(self, **kwargs):
+        super().at_post_puppet(**kwargs)
         tickerhandler.add(30, self.on_tick)
+
+    def at_pre_unpuppet(self):
+        super().at_pre_unpuppet()
+        tickerhandler.remove(30, self.on_tick)
 
     @property
     def health(self):
