@@ -11,7 +11,7 @@ DEFAULT_SYMBOL = "|[Y[]|n"
 DEFAULT_EMPTY_SYMBOL = "|b||_|n"
 DEFAULT_PLAYER_SYMBOL = "|[c|R()|n"
 
-def draw_mini_map(location, width=3, height=3):
+def draw_mini_map(location,add_line_break=True, width=3, height=3):
     # coords = (location.attributes.get("x", 0), location.attributes.get("y", 0))
     coords = (location.db.x, location.db.y)
     zone_tag = location.tags.get(category="zone")
@@ -46,7 +46,9 @@ def draw_mini_map(location, width=3, height=3):
                 continue
             string += map_dict[(x, y)]["symbol"]
 
-        string += "\n"
+        if add_line_break: string += "\n"
         string_list.append(string)
+        string = ""
+    string_list.append("          ")
 
-    return string
+    return string_list
