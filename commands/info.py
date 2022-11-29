@@ -122,57 +122,16 @@ class CmdStatus(Command):
         caller.msg(stat_bar("Sanity", sanity, 1000, colors=["M"]))
 
 class CmdMap(Command):
-    """
-    map
-
-    Usage:
-        map
-
-    Draw a map of your current location.
-    """
 
     key = "map"
-    help_category = "Info"
 
     def func(self):
         caller = self.caller
         location = caller.location
-        location_coords = (location.db.x, location.db.y)
-        zone_tag = location.tags.get(category="zone")
-        rooms = search_tag(zone_tag, category="zone")
-        map_dict = {}
         string = ""
-
-        for room in rooms:
-            if room.db.z != location.db.z:
-                continue
-            map_dict[(room.db.x, room.db.y)] = {"name":room.name,
-                                                "symbol":room.attributes.get("symbol","|[Y[]|n")}
-
-        results = {key: map_dict[key] for key in sorted(map_dict.keys(), key = lambda ele: ele[1] * ele[0])}
-        caller.msg(map_dict)
-        for y in reversed(range(location.db.y - 2, location.db.y + 3)):
-            for x in range(location.db.x - 2, location.db.x + 3):
-                if (x, y) in map_dict.keys():
-                    if (x, y) == location_coords:
-                        string += "|[c|R()|n"
-                        continue
-                    string += map_dict[(x, y)]["symbol"]
-                else:
-                    string += "|b||_"
-            string += "\n"
-
+        for line in mapping.draw_mini_map(location, width=8, height=8):
+            string += line
         caller.msg(string)
-
-class CmdTestMap(Command):
-
-    key = "tmap"
-
-    def func(self):
-        caller = self.caller
-        location = caller.location
-
-        caller.msg(mapping.draw_mini_map(location))
 
 
 class InfoCmdSet(CmdSet):
@@ -180,4 +139,3 @@ class InfoCmdSet(CmdSet):
         self.add(CmdSheet)
         self.add(CmdStatus)
         self.add(CmdMap)
-        self.add(CmdTestMap)
