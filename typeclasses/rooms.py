@@ -380,7 +380,8 @@ class Room(DefaultRoom):
                 if character_lit:
                     lit_items.append(character_lit)
             if not lit_items:
-                string += "|WIt is pitch black here. You can't make anything out.|n\n"
+                string += "|WIt is pitch black here. You can't make anything out.|n"
+                room_desc.append(string)
                 return unpack_description(mini_map, room_desc)
             
         string = ""
