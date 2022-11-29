@@ -94,6 +94,7 @@ from evennia import default_cmds
 from evennia import utils
 from evennia import CmdSet
 from evennia.utils.evtable import wrap
+from world import mapping
 from typeclasses.scripts.gametime import get_time_and_season 
 import commands.inventory as inv
 
@@ -327,8 +328,11 @@ class Room(DefaultRoom):
         # ensures that our description is current based on time/season
         self.update_current_description()
         # run the normal return_appearance method, now that desc is updated.
+        looker.msg(mapping.draw_mini_map(self))
+        string = ""
+
         # Room Name
-        string = f"|y{self.get_display_name(looker)}|n "
+        string += f"|y{self.get_display_name(looker)}|n "
         #Zone
         string += f"(|Y{self.tags.get(category='zone')}|n) "
         # Time
