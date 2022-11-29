@@ -94,6 +94,7 @@ from evennia import default_cmds
 from evennia import utils
 from evennia import CmdSet
 from evennia.utils.evtable import wrap
+from world import mapping
 from typeclasses.scripts.gametime import get_time_and_season 
 import commands.inventory as inv
 
@@ -192,6 +193,25 @@ def dark_aware_msg(message, location, mapping, mapping_dark, exclude=None):
     location.msg_contents(message_lit, normal_vision)
     # send dark message and exclude those with night vision
     location.msg_contents(message_dark, night_vision)
+
+
+def unpack_description(mini_map, room_desc):
+    string = ""
+    if len(mini_map) > len(room_desc):
+        length = len(mini_map)
+    else:
+        length = len(room_desc)
+    for line in range(length):
+        if line < len(mini_map):
+            string += f"{mini_map[line]}  "
+        if line < len(room_desc):
+            if line == len(room_desc) - 1:
+                string += f"{room_desc[line]}\n"
+            else:
+                string += room_desc[line]
+        else:
+            string += "\n"
+    return string
 
 class Room(DefaultRoom):
     """
@@ -326,14 +346,23 @@ class Room(DefaultRoom):
         """
         # ensures that our description is current based on time/season
         self.update_current_description()
+
+
         # run the normal return_appearance method, now that desc is updated.
+        mini_map = mapping.draw_mini_map(self, add_line_break=False)
+        room_desc = []
+        string = ""
+
         # Room Name
-        string = f"|y{self.get_display_name(looker)}|n "
+        string += f"|y{self.get_display_name(looker)}|n "
         #Zone
         string += f"(|Y{self.tags.get(category='zone')}|n) "
         # Time
         gtime = datetime.fromtimestamp(gametime.gametime(absolute=True))
         string += f"|w{gtime.strftime('%I:%M')}|n|W{gtime.strftime('%p').lower()}|n\n"
+
+        room_desc.append(string)
+        string = ""
         # Desc
         if self.db.dark and not looker.db.nightvision:
             characters = [char for char in self.contents if char.is_typeclass("typeclasses.characters.Character", exact=False)]
@@ -352,18 +381,21 @@ class Room(DefaultRoom):
                     lit_items.append(character_lit)
             if not lit_items:
                 string += "|WIt is pitch black here. You can't make anything out.|n\n"
-                return string
+                return unpack_description(mini_map, room_desc)
             
+        string = ""
         desc_string = wrap(f"{self.db.desc} \n", width=78)
         for line in desc_string:
-            string += (line + "\n")
+            # string += (line + "\n")
+            room_desc.append(f"{line}\n")
         # furniture
         furniture = str(inv.list_items_clean(self, show_doing_desc=True, categories=["furniture"]))
         if furniture:
             furniture = f"{furniture}."
             furniture = wrap(furniture, width=78)
             for line in furniture:
-                string += (line + "\n")
+                # string += (line + "\n")
+                room_desc.append(f"{line}\n")
             # string += f"{furniture}.\n"
         # items
         items = str(inv.list_items_clean(self, exclude=["furniture"]))
@@ -371,22 +403,26 @@ class Room(DefaultRoom):
             items_string = f"You see {items} on the ground."
             items_string = wrap(items_string, width=78)
             for line in items_string:
-                string += (line + "\n")
+                # string += (line + "\n")
+                room_desc.append(f"{line}\n")
         # players/mobs
         mob_list = [mob for mob in self.contents if mob.is_typeclass("typeclasses.characters.Character") and mob != looker]
         if mob_list:
             for mob in mob_list:
                 string += f"|w{mob.get_display_name(looker)}|n"
             string += " is standing here.\n"
+            room_desc.append(string)
         # exits
+        string = ""
         exit_list = [exits for exits in self.contents if exits.is_typeclass("typeclasses.exits.Exit", exact=False)]
         string += "|M[ Exits:|n  "
         for exits in exit_list:
             string += f"|W{exits.name}|n  "
         string += "|M]|n"
+        room_desc.append(string)
 
         # return super(Room, self).return_appearance(looker, **kwargs)
-        return string
+        return unpack_description(mini_map, room_desc) 
 
     def update_current_description(self):
         """

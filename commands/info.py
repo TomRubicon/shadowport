@@ -5,10 +5,11 @@ Commands that display character information.
 
 """
 
-from evennia import CmdSet
+from evennia import CmdSet, search_tag
 from evennia.utils import evtable
 from evennia.contrib import health_bar
 from commands.command import Command
+from world import mapping
 
 # helpers
 def format_stat(stat):
@@ -120,8 +121,21 @@ class CmdStatus(Command):
         caller.msg(stat_bar("Hunger", hunger, 500, colors=["Y"]))
         caller.msg(stat_bar("Sanity", sanity, 1000, colors=["M"]))
 
+class CmdMap(Command):
+
+    key = "map"
+
+    def func(self):
+        caller = self.caller
+        location = caller.location
+        string = ""
+        for line in mapping.draw_mini_map(location, width=8, height=8):
+            string += line
+        caller.msg(string)
+
 
 class InfoCmdSet(CmdSet):
     def at_cmdset_creation(self):
         self.add(CmdSheet)
         self.add(CmdStatus)
+        self.add(CmdMap)
