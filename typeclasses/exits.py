@@ -10,6 +10,7 @@ from evennia import DefaultExit, utils, Command
 from evennia.contrib.slow_exit import SlowExit
 from commands.queue import CommandQueue
 from commands.movement import handle_movement_queue
+import typeclasses.rooms as rooms
 
 class Exit(DefaultExit):
     """
@@ -68,11 +69,20 @@ class Exit(DefaultExit):
             return
 
         traversing_object.msg("You start moving %s. It will take %s seconds." % (self.key, move_speed))
-        traversing_object.location.msg_contents(f"{traversing_object.name} starts moving {self.key} at a {move_speed}", exclude=traversing_object)
+        rooms.dark_aware_msg(
+            "|w{traversing_object}|n starts moving |w{exit}|n |W(it will take {move_speed} seconds)|n",
+            self.location,
+            {"{traversing_object}":traversing_object.name, "{exit}":self.key, "{move_speed}":str(move_speed)},
+            {"{traversing_object}":"Someone", "{exit}":self.key, "{move_speed}":str(move_speed)},
+            traversing_object
+        )
         # create a delayed movement
         t = utils.delay(move_speed, move_callback)
         # we store the deferred on the character, this will allow us
         # to abort the movement. We must use an ndb here since
         # deferreds cannot be pickled.
         traversing_object.ndb.currently_moving = t
+
+    def return_appearance(self, looker, **kwargs):
+        return self.destination.return_appearance(looker, **kwargs)
 

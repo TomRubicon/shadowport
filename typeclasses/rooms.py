@@ -1,4 +1,4 @@
-""""
+"""
 Extended Room
 
 Evennia Contribution - Griatch 2012, vincent-lg 2019
@@ -93,7 +93,10 @@ from evennia import gametime
 from evennia import default_cmds
 from evennia import utils
 from evennia import CmdSet
+from evennia.utils.evtable import wrap
+from world import mapping
 from typeclasses.scripts.gametime import get_time_and_season 
+import commands.inventory as inv
 
 # error return function, needed by Extended Look command
 _AT_SEARCH_RESULT = utils.variable_from_module(*settings.SEARCH_AT_RESULT.rsplit(".", 1))
@@ -119,6 +122,96 @@ MONTHS_PER_YEAR = 12
 SEASONAL_BOUNDARIES = (3 / 12.0, 6 / 12.0, 9 / 12.0)
 HOURS_PER_DAY = 24
 DAY_BOUNDARIES = (0, 6 / 24.0, 12 / 24.0, 18 / 24.0)
+
+# helpers
+
+def dark_aware_msg(message, location, mapping, mapping_dark, exclude=None):
+    """
+    Calls msg_contents for a location that changes based on whether or
+    not a room is dark or a character has night vision.
+
+    Args:
+        message (string): the message that should be sent to the room
+        location (obj): the room object that will make the msg_contents call
+        mapping (dict): mapping of formatting keys
+        mapping_dark (dict): mapping of formatting keys if the room is dark
+        exclude (object or list, optional): objects to exclude from the msg
+
+    Notes:
+
+    """
+    message_lit = message
+    for mapped, replacement in mapping.items():
+        message_lit = message_lit.replace(mapped, replacement) 
+    # if it is not dark, just send a message as normal
+    if not location.db.dark:
+        location.msg_contents(message_lit, exclude)
+        return
+
+    message_dark = message
+    for mapped, replacement in mapping_dark.items():
+        message_dark = message_dark.replace(mapped, replacement)
+
+    # grab all the characters in the location
+    characters = [character for character in location.contents if character.is_typeclass("typeclasses.characters.Character", exact=False)]
+    # init lists
+    lit_items = []
+    night_vision = []
+    normal_vision = []
+
+    # check location for lit items on the ground
+    location_lit_items = location.search(True, attribute_name="lit", quiet=True)
+    if location_lit_items:
+        lit_items.append(location_lit_items)
+
+    for character in characters:
+        # check if characters here are carrying lit items
+        carried_lit_items = character.search(True, attribute_name="lit", quiet=True)
+        if carried_lit_items:
+            lit_items.append(carried_lit_items)
+        # check if character has night vision.
+        if character.db.nightvision:
+            night_vision.append(character)
+        else:
+            normal_vision.append(character)
+
+    # if any lit items are present, send the lit message
+    if lit_items:
+        location.msg_contents(message_lit, exclude)
+        return
+
+    # if there are no lit items present, send message_dark to characters without
+    # nightvision
+    if exclude and exclude.is_typeclass("typeclasses.characters.Character"):# or type(exclude) is obj:
+        night_vision.append(exclude)
+        normal_vision.append(exclude)
+    elif type(exclude) is list:
+        night_vision.extend(exclude)
+        normal_vision.extend(exclude)
+
+    # send lit message and exclude those with normal vision
+    location.msg_contents(message_lit, normal_vision)
+    # send dark message and exclude those with night vision
+    location.msg_contents(message_dark, night_vision)
+
+
+def unpack_description(mini_map, room_desc):
+    string = ""
+    if len(mini_map) > len(room_desc):
+        length = len(mini_map)
+    else:
+        length = len(room_desc)
+    for line in range(length):
+        if line < len(mini_map):
+            string += f"{mini_map[line]}  "
+        if line < len(room_desc):
+            if line == len(room_desc) - 1:
+                string += f"{room_desc[line]}\n"
+            else:
+                string += room_desc[line]
+        else:
+            string += "\n"
+    return string
 
 class Room(DefaultRoom):
     """
@@ -253,8 +346,84 @@ class Room(DefaultRoom):
         """
         # ensures that our description is current based on time/season
         self.update_current_description()
+
+
         # run the normal return_appearance method, now that desc is updated.
-        return super(Room, self).return_appearance(looker, **kwargs)
+        mini_map = mapping.draw_mini_map(self, add_line_break=False)
+        room_desc = []
+        string = ""
+
+        # Room Name
+        string += f"|y{self.get_display_name(looker)}|n "
+        #Zone
+        string += f"(|Y{self.tags.get(category='zone')}|n) "
+        # Time
+        gtime = datetime.fromtimestamp(gametime.gametime(absolute=True))
+        string += f"|w{gtime.strftime('%I:%M')}|n|W{gtime.strftime('%p').lower()}|n\n"
+
+        room_desc.append(string)
+        string = ""
+        # Desc
+        if self.db.dark and not looker.db.nightvision:
+            characters = [char for char in self.contents if char.is_typeclass("typeclasses.characters.Character", exact=False)]
+            lit_items = []
+            location_lit = self.search(
+                True,
+                attribute_name="lit",
+                quiet=True
+            )
+            if location_lit:
+                lit_items.append(location_lit)
+
+            for character in characters:
+                character_lit = character.search(True, attribute_name="lit", quiet=True)
+                if character_lit:
+                    lit_items.append(character_lit)
+            if not lit_items:
+                string += "|WIt is pitch black here. You can't make anything out.|n"
+                room_desc.append(string)
+                return unpack_description(mini_map, room_desc)
+            
+        string = ""
+        desc_string = wrap(f"{self.db.desc} \n", width=78)
+        for line in desc_string:
+            # string += (line + "\n")
+            room_desc.append(f"{line}\n")
+        # furniture
+        furniture = str(inv.list_items_clean(self, show_doing_desc=True, categories=["furniture"]))
+        if furniture:
+            furniture = f"{furniture}."
+            furniture = wrap(furniture, width=78)
+            for line in furniture:
+                # string += (line + "\n")
+                room_desc.append(f"{line}\n")
+            # string += f"{furniture}.\n"
+        # items
+        items = str(inv.list_items_clean(self, exclude=["furniture"]))
+        if items:
+            items_string = f"You see {items} on the ground."
+            items_string = wrap(items_string, width=78)
+            for line in items_string:
+                # string += (line + "\n")
+                room_desc.append(f"{line}\n")
+        # players/mobs
+        mob_list = [mob for mob in self.contents if mob.is_typeclass("typeclasses.characters.Character") and mob != looker]
+        if mob_list:
+            for mob in mob_list:
+                string += f"|w{mob.get_display_name(looker)}|n"
+            string += " is standing here.\n"
+            room_desc.append(string)
+        # exits
+        string = ""
+        exit_list = [exits for exits in self.contents if exits.is_typeclass("typeclasses.exits.Exit", exact=False)]
+        string += "|M[ Exits:|n  "
+        for exits in exit_list:
+            string += f"|W{exits.name}|n  "
+        string += "|M]|n"
+        room_desc.append(string)
+
+        # return super(Room, self).return_appearance(looker, **kwargs)
+        return unpack_description(mini_map, room_desc) 
 
     def update_current_description(self):
         """

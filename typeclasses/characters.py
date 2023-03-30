@@ -8,7 +8,9 @@ creation commands.
 
 """
 from evennia import DefaultCharacter
-from evennia.utils import list_to_string
+from evennia import TICKER_HANDLER as tickerhandler
+from evennia.utils import list_to_string, search
+import typeclasses.rooms as rooms
 from typeclasses.clothing import get_worn_clothes
 
 
@@ -52,6 +54,20 @@ class Character(DefaultCharacter):
             destination: the location of the object after moving.
 
         """
+        if self.location.db.dark: 
+            location = self.location
+            exits = [
+                o for o in location.contents if o.location is location and o.destination is destination
+            ]
+            exit_name = str(exits[0]) if exits else "somewhere"
+            rooms.dark_aware_msg(
+                "{character} leaves {exit}.",
+                self.location,
+                {"{character}":self.name, "{exit}":exit_name},
+                {"{character}":"Someone", "{exit}":exit_name},
+                self
+            )
+            return
         super().announce_move_from(destination, msg="{object} leaves {exit}.")
 
     def announce_move_to(self, source_location, msg=None, mapping=None):
@@ -83,10 +99,21 @@ class Character(DefaultCharacter):
                 if o.location is destination and o.destination is origin
             ]
         the_exit = exits[0]
-        exit_msg = "{object} arrives from the {exit}."
+        exit_msg_obj = "{object}"
+        exit_msg = "%s arrives from the {exit}." % (exit_msg_obj)
         exit_dict = {"up":"above", "down":"below", "in":"inside", "out":"outside"}
         if str(the_exit) in exit_dict:
-            exit_msg = "{object} arrives from %s." % (exit_dict[str(the_exit)])
+            exit_msg = "%s arrives from %s." % (exit_msg_obj, exit_dict[str(the_exit)])
+        if destination.db.dark:
+            rooms.dark_aware_msg(
+                exit_msg,
+                self.location,
+                {"{object}":self.name, "{exit}":str(the_exit)},
+                {"{object}":"Someone", "{exit}":str(the_exit)},
+                self
+            )
+            return
+
         super().announce_move_to(source_location, msg=exit_msg)
 
     def return_appearance(self, looker):
@@ -128,3 +155,90 @@ class Character(DefaultCharacter):
             string += "|/|/%s is not wearing anything." % self
         return string
 
+    def at_say(self, message, msg_self=None, msg_location=None, receivers=None, msg_receivers=None, **kwargs):
+        if self.location.db.dark:
+            message_location = '{character} says, "%s"' % (message)
+            rooms.dark_aware_msg(
+                message_location,
+                self.location,
+                {"{character}":self.name},
+                {"{character}":"Someone"},
+                self
+            )
+            self.msg(f'You say, "{message}"')
+            return
+        
+        super().at_say(message, msg_self, msg_location, receivers, msg_receivers, **kwargs)
+
+    def at_object_creation(self):
+        super().at_object_creation()
+        self.db.vitals = {"health":10,
+                          "health_max":10}
+        # tickerhandler.add(30, self.on_tick)
+
+    def at_post_puppet(self, **kwargs):
+        super().at_post_puppet(**kwargs)
+        tickerhandler.add(30, self.on_tick)
+
+    def at_pre_unpuppet(self):
+        super().at_pre_unpuppet()
+        tickerhandler.remove(30, self.on_tick)
+
+    @property
+    def health(self):
+        if self.db.vitals["health"] is None:
+            self.db.vitals["health"] = 10
+        return self.db.vitals["health"]
+
+    @health.setter
+    def health(self, value):
+        if value > self.health_max:
+            self.db.vitals["health"] = self.health_max
+        else:
+            self.db.vitals["health"] = value
+        if self.db.vitals["health"] <= 0:
+            self.db.vitals["health"] = 0
+            self.death()
+
+    @property
+    def health_max(self):
+        if self.db.vitals["health_max"] is None:
+            self.db.vitals["health_max"] = 10
+        return self.db.vitals["health_max"]
+
+    @health_max.setter
+    def health_max(self, value):
+        self.db.vitals["health"] = value
+
+    def full_heal(self, quiet=False):
+        self.health = self.health_max
+        if not quiet:
+            self.msg("|gYou feel completely healed!")
+        return
+
+    def change_health(self, ammount, quiet=False):
+        msg_color = "|w"
+        if ammount < 0:
+            msg_color = "|r"
+        elif ammount > 0:
+            msg_color = "|g"
+        self.msg(f"{msg_color}Health changed by {ammount}.|n")
+        self.health += ammount
+        self.msg(f"Current health: {self.health} / {self.health_max}")
+        return
+
+    def on_tick(self):
+        if self.health < self.health_max:
+            self.change_health(2)
+
+    def death(self):
+        self.msg("|r You are have died!!")
+        limbo = search.search_object("#2", use_dbref=True, exact=True)
+        for item in self.contents:
+            item.move_to(self.location, quiet=True)
+            if item.db.worn:
+                item.db.worn = False
+
+        self.move_to(limbo[0], quiet=True)
+        self.full_heal(quiet=True)
+        return
